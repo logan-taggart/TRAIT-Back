@@ -1,21 +1,29 @@
-from flask import Blueprint, request
+from flask import Blueprint, jsonify, request
 from flask_cors import CORS
 
-from utils.detect import *
+from utils.process import *
 
 image_blueprint = Blueprint("image", __name__, url_prefix="/image")
 CORS(image_blueprint)
 
 @image_blueprint.route("/detect-all", methods=["POST"])
 def detect_all():
-    if "file" not in request.files:
+    if "main_image" not in request.files:
         return jsonify({"error": "No file provided"}), 400
 
-    file = request.files["file"]
+    main_image = request.files["main_image"]
 
-    return process_image(file)
+    return identify_all_logos(main_image)
 
 
 @image_blueprint.route("/detect-specific", methods=["POST"])
 def detect_specific():
-    return
+    if "main_image" not in request.files or "reference_image" not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+
+    main_image = request.files["main_image"]
+    reference_image = request.files["reference_image"]
+    #embedding_model = request.form.get("embed_model")
+    embedding_model = "BEiT"
+
+    return compare_logo_embeddings(main_image, reference_image, model, embedding_model)
