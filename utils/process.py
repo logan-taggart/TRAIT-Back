@@ -7,17 +7,14 @@ from PIL import Image
 from sklearn.metrics.pairwise import cosine_similarity
 from utils.embed import *
 
-def compare_logo_embeddings(input_path, reference_path, model, feature_extractor, similarity_threshold=0.4):
-    if feature_extractor == "BEiT":
+def compare_logo_embeddings(input_file, reference_file, model, feature_extractor, similarity_threshold):
+    if feature_extractor == "default":
         feature_extractor = BEiTEmbedding()
-    elif feature_extractor == "CLIP":
+    elif feature_extractor == "alternative":
         feature_extractor = CLIPEmbedding()
-    else:
-        print("Invalid feature extractor.")
-        return
-
-    input_logos, input_bboxes, input_img = extract_logo_regions(input_path, model)
-    reference_logos, reference_bboxes, reference_img = extract_logo_regions(reference_path, model)
+   
+    input_logos, input_bboxes, input_img = extract_logo_regions(input_file, model)
+    reference_logos, reference_bboxes, reference_img = extract_logo_regions(reference_file, model)
     
     if not input_logos or not reference_logos:
         print("No logos detected in one or both images.")
@@ -31,7 +28,7 @@ def compare_logo_embeddings(input_path, reference_path, model, feature_extractor
             similarity = compute_cosine_similarity(input_embedding, reference_embedding)
 
             print(f'similarity score: {similarity}')
-            if similarity >= similarity_threshold:
+            if similarity >= float(similarity_threshold) / 100.0:
                 x1, y1, x2, y2 = input_bboxes[index]
                 color = [255, 255, 255]
                 cv2.rectangle(input_img, (x1, y1), (x2, y2), color, 2)
