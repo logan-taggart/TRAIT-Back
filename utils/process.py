@@ -4,44 +4,100 @@ import io
 from models.model_load import model
 import numpy as np
 from PIL import Image
-from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics.pairwise import cosine_similarity, euclidean_distances
 from utils.embed import *
 
-def compare_logo_embeddings(input_file, reference_file, model, feature_extractor, similarity_threshold):
-    if feature_extractor == "default":
-        feature_extractor = BEiTEmbedding()
-    elif feature_extractor == "alternative":
-        feature_extractor = CLIPEmbedding()
+# def compare_logo_embeddings(input_file, reference_file, model, feature_extractor, similarity_threshold):
+#     if feature_extractor == "default":
+#         feature_extractor = BEiTEmbedding()
+#     elif feature_extractor == "alternative":
+#         feature_extractor = CLIPEmbedding()
    
-    input_logos, input_bboxes, input_img = extract_logo_regions(input_file, model)
-    reference_logos, reference_bboxes, reference_img = extract_logo_regions(reference_file, model)
+#     input_logos, input_bboxes, input_img = extract_logo_regions(input_file, model)
+#     reference_logos, reference_bboxes, reference_img = extract_logo_regions(reference_file, model)
     
+#     if not input_logos or not reference_logos:
+#         print("No logos detected in one or both images.")
+#         return
+
+#     input_embeddings = [feature_extractor.extract_embedding(Image.fromarray(input_logo)) for input_logo in input_logos]
+#     reference_embeddings = [feature_extractor.extract_embedding(Image.fromarray(reference_logo)) for reference_logo in reference_logos]
+    
+#     for index, input_embedding in enumerate(input_embeddings):
+#         for ref_index, reference_embedding in enumerate(reference_embeddings):
+#             similarity = compute_cosine_similarity(input_embedding, reference_embedding)
+
+#             print(f'similarity score: {similarity}')
+#             if similarity >= float(similarity_threshold) / 100.0:
+#                 x1, y1, x2, y2 = input_bboxes[index]
+#                 color = [255, 255, 255]
+#                 cv2.rectangle(input_img, (x1, y1), (x2, y2), color, 2)
+
+#         _, img_encoded = cv2.imencode(".jpg", input_img)
+
+#     return send_file(io.BytesIO(img_encoded.tobytes()), mimetype="image/jpeg")
+def compare_logo_embeddings(input_path, reference_path, model, score_threshold):
+    embedding_models = [BEiTEmbedding(), CLIPEmbedding(), ResNetEmbedding()]
+    thresholds = {
+        'BEiTEmbedding': {'cosine': .3, 'euclidean': 110},
+        'CLIPEmbedding': {'cosine': .65, 'euclidean': 7.5},
+        'ResNetEmbedding': {'cosine': .75, 'euclidean': 50}
+    }
+
+    input_logos, input_bboxes, input_img = extract_logo_regions(input_path, model)
+    reference_logos, _, _ = extract_logo_regions(reference_path, model)
+
     if not input_logos or not reference_logos:
         print("No logos detected in one or both images.")
         return
 
-    input_embeddings = [feature_extractor.extract_embedding(Image.fromarray(input_logo)) for input_logo in input_logos]
-    reference_embeddings = [feature_extractor.extract_embedding(Image.fromarray(reference_logo)) for reference_logo in reference_logos]
-    
-    for index, input_embedding in enumerate(input_embeddings):
-        for ref_index, reference_embedding in enumerate(reference_embeddings):
-            similarity = compute_cosine_similarity(input_embedding, reference_embedding)
+    scores = [[0] * len(input_logos) for _ in range(len(reference_logos))]
 
-            print(f'similarity score: {similarity}')
-            if similarity >= float(similarity_threshold) / 100.0:
-                x1, y1, x2, y2 = input_bboxes[index]
-                color = [255, 255, 255]
+    for feature_extractor in embedding_models:
+        model_name = type(feature_extractor).__name__
+
+        cosine_threshold = thresholds[model_name]["cosine"]
+        euclidean_threshold = thresholds[model_name]["euclidean"]
+
+        input_embeddings = [feature_extractor.extract_embedding(Image.fromarray(logo)) for logo in input_logos]
+        reference_embeddings = [feature_extractor.extract_embedding(Image.fromarray(logo)) for logo in reference_logos]
+
+        for i, ref_embedding in enumerate(reference_embeddings):
+            for j, input_embedding in enumerate(input_embeddings):
+                cosine_sim = compute_cosine_similarity(input_embedding, ref_embedding)
+                euclidean_dist = compute_euclidean_distances(input_embedding, ref_embedding)
+
+                if cosine_sim >= cosine_threshold:
+                    scores[i][j] += 1
+                if euclidean_dist <= euclidean_threshold:
+                    scores[i][j] += 1
+
+                print(f'{model_name} score: {scores[i][j]}')
+
+    for i in range(len(reference_logos)):
+        for j in range(len(input_logos)):
+            if scores[i][j] >= score_threshold: 
+                x1, y1, x2, y2 = input_bboxes[j]
+                color = (255, 255, 255)
                 cv2.rectangle(input_img, (x1, y1), (x2, y2), color, 2)
 
         _, img_encoded = cv2.imencode(".jpg", input_img)
 
     return send_file(io.BytesIO(img_encoded.tobytes()), mimetype="image/jpeg")
 
+
 def compute_cosine_similarity(embedding1, embedding2):
     embedding1 = np.array(embedding1).reshape(1, -1)
     embedding2 = np.array(embedding2).reshape(1, -1)
 
-    return cosine_similarity(embedding1, embedding2)
+    return cosine_similarity(embedding1, embedding2)[0][0]
+
+
+def compute_euclidean_distances(embedding1, embedding2):
+    embedding1 = np.array(embedding1).reshape(1, -1)
+    embedding2 = np.array(embedding2).reshape(1, -1)
+
+    return euclidean_distances(embedding1, embedding2)[0][0]
 
 
 def extract_logo_regions(image, model):
