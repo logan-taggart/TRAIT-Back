@@ -6,6 +6,11 @@ from utils.process import *
 image_blueprint = Blueprint("image", __name__, url_prefix="/image")
 CORS(image_blueprint)
 
+@image_blueprint.route("/", methods=["GET"])
+def health_check():
+    return jsonify({"status": "Image processing service is running"}), 200
+
+    
 @image_blueprint.route("/detect-all", methods=["POST"])
 def detect_all():
     if "main_image" not in request.files:
