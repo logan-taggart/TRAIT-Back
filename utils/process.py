@@ -7,35 +7,7 @@ from PIL import Image
 from sklearn.metrics.pairwise import cosine_similarity, euclidean_distances
 from utils.embed import *
 
-# def compare_logo_embeddings(input_file, reference_file, model, feature_extractor, similarity_threshold):
-#     if feature_extractor == "default":
-#         feature_extractor = BEiTEmbedding()
-#     elif feature_extractor == "alternative":
-#         feature_extractor = CLIPEmbedding()
-   
-#     input_logos, input_bboxes, input_img = extract_logo_regions(input_file, model)
-#     reference_logos, reference_bboxes, reference_img = extract_logo_regions(reference_file, model)
-    
-#     if not input_logos or not reference_logos:
-#         print("No logos detected in one or both images.")
-#         return
 
-#     input_embeddings = [feature_extractor.extract_embedding(Image.fromarray(input_logo)) for input_logo in input_logos]
-#     reference_embeddings = [feature_extractor.extract_embedding(Image.fromarray(reference_logo)) for reference_logo in reference_logos]
-    
-#     for index, input_embedding in enumerate(input_embeddings):
-#         for ref_index, reference_embedding in enumerate(reference_embeddings):
-#             similarity = compute_cosine_similarity(input_embedding, reference_embedding)
-
-#             print(f'similarity score: {similarity}')
-#             if similarity >= float(similarity_threshold) / 100.0:
-#                 x1, y1, x2, y2 = input_bboxes[index]
-#                 color = [255, 255, 255]
-#                 cv2.rectangle(input_img, (x1, y1), (x2, y2), color, 2)
-
-#         _, img_encoded = cv2.imencode(".jpg", input_img)
-
-#     return send_file(io.BytesIO(img_encoded.tobytes()), mimetype="image/jpeg")
 def compare_logo_embeddings(input_path, reference_path, model, score_threshold):
     embedding_models = [BEiTEmbedding(), CLIPEmbedding(), ResNetEmbedding()]
     thresholds = {
