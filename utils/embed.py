@@ -1,24 +1,34 @@
+import os
 import torch
-from torchvision import transforms
-from torchvision.models import resnet50
-from transformers import BeitImageProcessor, BeitModel, CLIPModel, CLIPProcessor
+import numpy as np
+import logging
+
+from torchvision.transforms import Resize, CenterCrop, ToTensor, Normalize, Compose
+from torchvision.models import resnet50, ResNet50_Weights
+from transformers import AutoImageProcessor, BeitModel, CLIPModel, CLIPProcessor
+
+logging.getLogger("transformers").setLevel(logging.ERROR)
+
+current_dir = os.getcwd()
+cache_dir = os.path.join(current_dir, "model_cache")
+os.makedirs(cache_dir, exist_ok=True)
 
 class BEiTEmbedding:
     def __init__(self, model_name="microsoft/beit-base-patch16-224"):
-        self.feature_extractor = BeitImageProcessor.from_pretrained(model_name) 
-        self.model = BeitModel.from_pretrained(model_name)
+        self.feature_extractor = AutoImageProcessor.from_pretrained(model_name, cache_dir=cache_dir) 
+        self.model = BeitModel.from_pretrained(model_name, cache_dir=cache_dir)
 
     def extract_embedding(self, img):
         inputs = self.feature_extractor(images=img, return_tensors="pt")
         with torch.no_grad():
             outputs = self.model(**inputs)
-        embedding = outputs.last_hidden_state.mean(dim=1).cpu().numpy() 
-        return embedding
+        return outputs.last_hidden_state.mean(dim=1).cpu().numpy()
+
 
 class CLIPEmbedding:
     def __init__(self, model_name="openai/clip-vit-base-patch32"):
-        self.model = CLIPModel.from_pretrained(model_name)
-        self.processor = CLIPProcessor.from_pretrained(model_name)
+        self.model = CLIPModel.from_pretrained(model_name, cache_dir=cache_dir)
+        self.processor = CLIPProcessor.from_pretrained(model_name, cache_dir=cache_dir)
 
     def extract_embedding(self, img):
         inputs = self.processor(images=img, return_tensors="pt")
@@ -26,15 +36,16 @@ class CLIPEmbedding:
             outputs = self.model.get_image_features(**inputs)
         return outputs.squeeze().numpy()
 
+
 class ResNetEmbedding:
     def __init__(self, model_name="resnet50"):
-        self.model = resnet50(pretrained=True)
+        self.model = resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
         self.model.eval()
-        self.transform = transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        self.transform = Compose([
+            Resize(256),
+            CenterCrop(224),
+            ToTensor(),
+            Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])
 
     def extract_embedding(self, img):

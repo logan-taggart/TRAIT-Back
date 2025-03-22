@@ -17,8 +17,9 @@ def detect_all():
         return jsonify({"error": "No file provided"}), 400
 
     main_image = request.files["main_image"]
+    bb_color = request.form.get("bb_color")
 
-    return identify_all_logos(main_image)
+    return identify_all_logos(main_image, bb_color)
 
 
 @image_blueprint.route("/detect-specific", methods=["POST"])
@@ -28,7 +29,7 @@ def detect_specific():
 
     main_image = request.files["main_image"]
     reference_image = request.files["reference_image"]
-    embedding_model = request.form.get("algorithm")
-    similarity_threshold = request.form.get("confidence")
+    similarity_threshold = int(request.form.get("confidence"))
+    bb_color = request.form.get("bb_color")
 
-    return compare_logo_embeddings(main_image, reference_image, model, 4)
+    return compare_logo_embeddings(main_image, reference_image, similarity_threshold, bb_color)
