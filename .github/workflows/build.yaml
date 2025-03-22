@@ -1,9 +1,12 @@
-name: Build executables
+name: Build and Release Executables
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -36,13 +39,30 @@ jobs:
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             pyinstaller --onedir --windowed --name backend run.py --add-data "models/logo_detection.pt;models" --exclude-module tkinter
           else
-            pyinstaller --onedir --windowed --name backend run.py \
-              --add-data "models/logo_detection.pt:models" \
-              --exclude-module tkinter
+            pyinstaller --onedir --windowed --name backend run.py --add-data "models/logo_detection.pt:models" --exclude-module tkinter
           fi
 
-      - name: Upload artifact
+      - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: backend-${{ matrix.os }}
           path: dist/backend
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist-artifacts
+          if-no-files-found: warn
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ github.sha }}
+          tag_name: v${{ github.run_number }}
+          body: "Automated release for commit `${{ github.sha }}`"
+          files: dist-artifacts/**/*
