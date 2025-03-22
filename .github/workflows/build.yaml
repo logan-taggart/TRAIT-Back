@@ -23,48 +23,51 @@ jobs:
           python-version: "3.12.9"
 
       - name: Create virtual environment
-        run: |
-          python -m venv venv
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            source venv/Scripts/activate
-          else
-            source venv/bin/activate
-          fi
+        run: python -m venv venv
         shell: bash
 
-      - name: Install dependencies in isolated environment
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
         run: |
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            venv/Scripts/pip install --upgrade pip
-            venv/Scripts/pip install numpy
-            venv/Scripts/pip install -r requirements.txt
-            venv/Scripts/pip install pyinstaller
-          else
-            venv/bin/pip install --upgrade pip
-            venv/bin/pip install numpy
-            venv/bin/pip install -r requirements.txt
-            venv/bin/pip install pyinstaller
-          fi
+          .\venv\Scripts\python -m pip install --upgrade pip
+          .\venv\Scripts\pip install numpy
+          .\venv\Scripts\pip install -r requirements.txt
+          .\venv\Scripts\pip install pyinstaller
+        shell: cmd
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          ./venv/bin/pip install --upgrade pip
+          ./venv/bin/pip install numpy
+          ./venv/bin/pip install -r requirements.txt
+          ./venv/bin/pip install pyinstaller
         shell: bash
 
-      - name: Build executable
+      - name: Build executable (Windows)
+        if: runner.os == 'Windows'
         env: 
           PYINSTALLER_NO_PLUGIN: "1"
         run: |
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            venv/Scripts/pyinstaller --onedir --windowed --name backend run.py --add-data "models/logo_detection.pt;models" --exclude-module tkinter
-          else
-            arch -x86_64 venv/bin/pyinstaller --onedir --windowed --name backend run.py --add-data "models/logo_detection.pt:models" --exclude-module tkinter
-          fi
+          .\venv\Scripts\pyinstaller --onedir --windowed --name backend run.py --add-data "models/logo_detection.pt;models" --exclude-module tkinter
+        shell: cmd
+
+      - name: Build executable (macOS)
+        if: runner.os == 'macOS'
+        env: 
+          PYINSTALLER_NO_PLUGIN: "1"
+        run: |
+          arch -x86_64 ./venv/bin/pyinstaller --onedir --windowed --name backend run.py --add-data "models/logo_detection.pt:models" --exclude-module tkinter
         shell: bash
 
-      - name: Zip build output
-        run: |
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            powershell Compress-Archive -Path dist/backend -DestinationPath backend-windows.zip
-          else
-            cd dist && zip -r ../backend-mac-x86_64.zip backend
-          fi
+      - name: Zip build output (Windows)
+        if: runner.os == 'Windows'
+        run: Compress-Archive -Path dist/backend -DestinationPath backend-windows.zip
+        shell: pwsh
+
+      - name: Zip build output (macOS)
+        if: runner.os == 'macOS'
+        run: cd dist && zip -r ../backend-mac-x86_64.zip backend
         shell: bash
 
       - name: Upload zipped artifact
