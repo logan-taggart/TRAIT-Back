@@ -13,10 +13,6 @@ jobs:
         os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
 
-    defaults:
-      run:
-        shell: bash
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -39,16 +35,24 @@ jobs:
           else
             pyinstaller --onedir --windowed --name backend run.py --add-data "models/logo_detection.pt:models" --exclude-module tkinter
           fi
+        shell: bash
 
       - name: Zip build output
         run: |
-          zip -r backend-${{ runner.os }}.zip dist/backend
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            powershell Compress-Archive -Path dist/backend -DestinationPath backend-Windows.zip
+          else
+            zip -r backend-macos.zip dist/backend
+          fi
+        shell: bash
 
       - name: Upload zipped artifact
         uses: actions/upload-artifact@v4
         with:
           name: backend-${{ matrix.os }}
-          path: backend-${{ runner.os }}.zip
+          path: |
+            backend-Windows.zip
+            backend-macos.zip
 
   release:
     needs: build
