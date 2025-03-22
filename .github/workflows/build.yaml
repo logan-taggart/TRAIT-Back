@@ -20,7 +20,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.11"
+          python-version: "3.12.9"
 
       - name: Install dependencies
         run: |
@@ -48,7 +48,7 @@ jobs:
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             powershell Compress-Archive -Path dist/backend -DestinationPath backend-windows.zip
           else
-            cd dist && zip -r ../backend-mac-x86_64.zip backend
+            cd dist && zip -r ../backend-macintel.zip backend
           fi
         shell: bash
 
@@ -58,7 +58,7 @@ jobs:
           name: backend-${{ matrix.os }}
           path: |
             backend-windows.zip
-            backend-mac.zip
+            backend-macintel.zip
 
   release:
     needs: build
