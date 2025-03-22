@@ -35,6 +35,8 @@ jobs:
           python -c "import numpy; print('NumPy path:', numpy.__file__)"
 
       - name: Build executable
+        env: 
+          PYINSTALLER_NO_PLUGIN: "1"
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             pyinstaller --onedir --windowed --name backend run.py --add-data "models/logo_detection.pt;models" --exclude-module tkinter
