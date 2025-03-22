@@ -47,10 +47,6 @@ jobs:
         with:
           name: backend-${{ matrix.os }}
           path: dist/backend
-        continue-on-error: true
-        retry:
-          max-attempts: 3
-          delay-seconds: 10
 
   release:
     needs: build
