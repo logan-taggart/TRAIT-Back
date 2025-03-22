@@ -19,7 +19,8 @@ signal.signal(signal.SIGINT, handle_shutdown)
 signal.signal(signal.SIGTERM, handle_shutdown)
 
 if __name__ == "__main__":
-    env = os.environ.get("ENV", "dev")
+    # Change the environment to "dev" for development, "prod" for production  
+    env = os.environ.get("ENV", "prod")
     port = int(os.environ.get("PORT", 5174))
 
     if env == "prod":
