@@ -42,6 +42,8 @@ jobs:
             arch -x86_64 pyinstaller --onedir --windowed --name backend run.py --add-data "models/logo_detection.pt:models" --exclude-module tkinter
           fi
         shell: bash
+        env:
+          ENV: prod
 
       - name: Zip build output
         run: |
