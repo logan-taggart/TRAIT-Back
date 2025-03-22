@@ -40,9 +40,9 @@ jobs:
       - name: Zip build output
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            powershell Compress-Archive -Path dist/backend -DestinationPath backend-Windows.zip
+            powershell Compress-Archive -Path dist/backend -DestinationPath backend-windows.zip
           else
-            zip -r backend-macos.zip dist/backend
+            zip -r backend-mac.zip dist/backend
           fi
         shell: bash
 
@@ -51,8 +51,8 @@ jobs:
         with:
           name: backend-${{ matrix.os }}
           path: |
-            backend-Windows.zip
-            backend-macos.zip
+            backend-windows.zip
+            backend-mac.zip
 
   release:
     needs: build
