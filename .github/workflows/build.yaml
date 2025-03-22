@@ -22,19 +22,29 @@ jobs:
         with:
           python-version: "3.12.9"
 
-      - name: Install dependencies
+      - name: Create virtual environment
         run: |
-          python -m pip install --upgrade pip
-          # Install numpy separately first to avoid source import issue
-          pip install numpy --force-reinstall
-          pip install -r requirements.txt
-          pip install pyinstaller
+          python -m venv venv
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            source venv/Scripts/activate
+          else
+            source venv/bin/activate
+          fi
+        shell: bash
 
-      - name: Verify NumPy installation (from outside source directory)
+      - name: Install dependencies in isolated environment
         run: |
-          cd /tmp  # Move to a different directory for importing numpy
-          python -c "import numpy; print('NumPy version:', numpy.__version__)"
-          python -c "import numpy; print('NumPy libraries:', numpy.get_include())"
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            venv/Scripts/pip install --upgrade pip
+            venv/Scripts/pip install numpy
+            venv/Scripts/pip install -r requirements.txt
+            venv/Scripts/pip install pyinstaller
+          else
+            venv/bin/pip install --upgrade pip
+            venv/bin/pip install numpy
+            venv/bin/pip install -r requirements.txt
+            venv/bin/pip install pyinstaller
+          fi
         shell: bash
 
       - name: Build executable
@@ -42,9 +52,9 @@ jobs:
           PYINSTALLER_NO_PLUGIN: "1"
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            pyinstaller --hidden-import=numpy --hidden-import=numpy.core --hidden-import=numpy.random --onedir --windowed --name backend run.py --add-data "models/logo_detection.pt;models" --exclude-module tkinter
+            venv/Scripts/pyinstaller --onedir --windowed --name backend run.py --add-data "models/logo_detection.pt;models" --exclude-module tkinter
           else
-            arch -x86_64 pyinstaller --hidden-import=numpy --hidden-import=numpy.core --hidden-import=numpy.random --onedir --windowed --name backend run.py --add-data "models/logo_detection.pt:models" --exclude-module tkinter
+            arch -x86_64 venv/bin/pyinstaller --onedir --windowed --name backend run.py --add-data "models/logo_detection.pt:models" --exclude-module tkinter
           fi
         shell: bash
 
