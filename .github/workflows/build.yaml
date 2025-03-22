@@ -53,16 +53,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Set release timestamp
+        run: echo "RELEASE_TAG=$(date +'%Y-%m-%d-%H%M%S')" >> $GITHUB_ENV
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: dist-artifacts
-          if-no-files-found: warn
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: Release ${{ github.sha }}
-          tag_name: v${{ github.run_number }}
+          name: Release ${{ env.RELEASE_TAG }}
+          tag_name: release-${{ env.RELEASE_TAG }}
           body: "Automated release for commit `${{ github.sha }}`"
           files: dist-artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
