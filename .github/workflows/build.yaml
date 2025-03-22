@@ -28,12 +28,18 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
+      - name: Debug architecture info
+        run: |
+          echo "OS: ${{ runner.os }}"
+          python -c "import platform; print('Python:', platform.machine())"
+          uname -m
+
       - name: Build executable
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             pyinstaller --onedir --windowed --name backend run.py --add-data "models/logo_detection.pt;models" --exclude-module tkinter
           else
-            pyinstaller --onedir --windowed --name backend run.py --add-data "models/logo_detection.pt:models" --exclude-module tkinter
+            arch -x86_64 pyinstaller --onedir --windowed --name backend run.py --add-data "models/logo_detection.pt:models" --exclude-module tkinter
           fi
         shell: bash
 
@@ -42,7 +48,7 @@ jobs:
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             powershell Compress-Archive -Path dist/backend -DestinationPath backend-windows.zip
           else
-            zip -r backend-mac.zip dist/backend
+            cd dist && zip -r ../backend-mac-x86_64.zip backend
           fi
         shell: bash
 
