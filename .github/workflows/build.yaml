@@ -40,7 +40,7 @@ jobs:
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             pyinstaller --hidden-import=numpy --hidden-import=numpy.core --hidden-import=numpy.random --onedir --windowed --name backend run.py --add-data "models/logo_detection.pt;models" --exclude-module tkinter
           else
-            pyinstaller --hidden-import=numpy --hidden-import=numpy.core --hidden-import=numpy.random --onedir --windowed --name backend run.py --add-data "models/logo_detection.pt:models" --exclude-module tkinter
+            arch -x86_64 pyinstaller --hidden-import=numpy --hidden-import=numpy.core --hidden-import=numpy.random --onedir --windowed --name backend run.py --add-data "models/logo_detection.pt:models" --exclude-module tkinter
           fi
         shell: bash
 
