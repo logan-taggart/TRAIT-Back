@@ -34,9 +34,7 @@ jobs:
       - name: Build executable
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            pyinstaller --onedir --windowed --name backend run.py `
-              --add-data "models/logo_detection.pt;models" `
-              --exclude-module tkinter
+            pyinstaller --onedir --windowed --name backend run.py --add-data "models/logo_detection.pt;models" --exclude-module tkinter
           else
             pyinstaller --onedir --windowed --name backend run.py \
               --add-data "models/logo_detection.pt:models" \
