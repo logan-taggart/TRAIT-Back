@@ -42,31 +42,32 @@ jobs:
             pyinstaller --onedir --windowed --name backend run.py --add-data "models/logo_detection.pt:models" --exclude-module tkinter
           fi
 
-      - name: Upload build artifact
+      - name: Zip build output
+        run: |
+          zip -r backend-${{ runner.os }}.zip dist/backend
+
+      - name: Upload zipped artifact
         uses: actions/upload-artifact@v4
         with:
           name: backend-${{ matrix.os }}
-          path: dist/backend
+          path: backend-${{ runner.os }}.zip
 
   release:
     needs: build
     runs-on: ubuntu-latest
 
     steps:
-      - name: Set release timestamp
-        run: echo "RELEASE_TAG=$(date +'%Y-%m-%d-%H%M%S')" >> $GITHUB_ENV
-
-      - name: Download all artifacts
+      - name: Download all zipped artifacts
         uses: actions/download-artifact@v4
         with:
-          path: dist-artifacts
+          path: release-artifacts
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: Release ${{ env.RELEASE_TAG }}
-          tag_name: release-${{ env.RELEASE_TAG }}
+          name: Release ${{ github.run_id }}
+          tag_name: release-${{ github.run_id }}
           body: "Automated release for commit `${{ github.sha }}`"
-          files: dist-artifacts/**/*
+          files: release-artifacts/**/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
