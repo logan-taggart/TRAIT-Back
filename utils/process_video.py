@@ -81,6 +81,53 @@ def draw_bb_box(bbox, frame, ID):
     cv2.putText(frame, f"ID: {ID}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (77, 33, 191), 2)
 
 
+def save_processed_video(processed_frames, fps):
+    '''Save the processed video to a temporary file and return it as a base64 encoded string'''
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp_outfile:
+        output_path = tmp_outfile.name
+
+    with imageio.get_writer(output_path, format='ffmpeg', fps=fps) as writer:
+        for frame in processed_frames:
+            writer.append_data(frame)
+
+    with open(output_path, 'rb') as f:
+        video_bytes = f.read()
+
+    os.remove(output_path)
+    return base64.b64encode(video_bytes).decode('utf-8')
+
+
+def add_logo_to_faiss(faiss_index, embedding, logo_id_map, logo_id_counter):
+    '''
+    Add a new logo embedding to the FAISS index and update the ID map
+    Assumes the the embedduing is already normalized
+    '''
+    # Add the embedding to the FAISS index (already normalized)
+    faiss_index.add(embedding)
+    # Update the logo ID map with the new logo ID
+    logo_id_map[faiss_index.ntotal - 1] = logo_id_counter
+    # Increment the logo ID counter for the next unique logo
+    return logo_id_counter + 1
+
+def update_logo_in_faiss(faiss_index, embedding, logo_id_map, logo_appearance_counts, threshold=0.5):
+    '''Search FAISS index for a logo and update counts if a match is found or a new entry is added'''
+
+    # Get the distance and index of the nearest neighbor
+    D, I = faiss_index.search(np.array(embedding), k=1)
+    # Check if the distance is less than the threshold (LOWER IS BETTER)
+    if D[0][0] < threshold:
+        # Logo already exists
+        assigned_id = logo_id_map[I[0][0]]
+        # Increment the count of appearances for this logo
+        logo_appearance_counts[assigned_id] += 1
+    else:
+        # New logo seen, add it to FAISS
+        assigned_id = add_logo_to_faiss(faiss_index, embedding, logo_id_map, len(logo_id_map))
+        # Set the number of times we seen this new logo to 1 (first appearance)
+        logo_appearance_counts[assigned_id] = 1
+    return assigned_id
+
 
 def process_video(input_video_path, frame_skip=5):
     # resnet size = 2048
@@ -117,32 +164,9 @@ def process_video(input_video_path, frame_skip=5):
                 embedding = embedding_models[0].extract_embedding(Image.fromarray(rgb_logo))
                 faiss.normalize_L2(embedding) # normalize the embedding. Works really well with FAISS
 
-                if faiss_index.ntotal == 0: # First entry into FAISS
-                    print("ADDING NEW INDEX") # Create a new index into FAISS
-                    faiss_index.add(embedding) # Get embedding
-                    logo_id_map[0] = logo_id_counter # First unique logo
-                    logo_appearance_counts[logo_id_counter] += 1 # increment the unique logo
-                    logo_id_counter += 1 # Go to next unique ID
-                    assigned_id = logo_id_counter - 1 # current unique ID
-                    save_frame = True
-                else:
-                    # Get the L2 distance and index 
-                    D, I = faiss_index.search(np.array(embedding), k=1)
-                    print("Distance:", D[0][0])
-                    # Lower the distance, the better
-                    if D[0][0] < 0.5:  # If a distance is above a 0.5, then the logo hasnt been seen
-                        print("INDEX ALREADY EXISTS")
-                        assigned_id = logo_id_map[I[0][0]]
-                        logo_appearance_counts[assigned_id] += 1 # increase the amount of times weve seen this logo
-                        save_frame = False
-                    else:                        
-                        print("ADDING NEW INDEX") # Create a new index into FAISS
-                        faiss_index.add(embedding) # Add a new index (embedding)
-                        logo_id_map[faiss_index.ntotal - 1] = logo_id_counter # Assign the new index to a logo_id
-                        logo_appearance_counts[logo_id_counter] += 1 # increment how many times weve seen this unique ID
-                        assigned_id = logo_id_counter # current assigned ID
-                        logo_id_counter += 1 # Go to the next unique ID
-                        save_frame = True
+                # Process the embedding with FAISS
+                # Checks if the logo already exists in the FAISS index
+                assigned_id = update_logo_in_faiss(faiss_index, embedding, logo_id_map, logo_appearance_counts)
                     
                 draw_bb_box(bbox, frame, assigned_id)
 
@@ -158,28 +182,9 @@ def process_video(input_video_path, frame_skip=5):
 
     cap.release()
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp_outfile:
-        output_path = tmp_outfile.name
-
-    with imageio.get_writer(output_path, format='ffmpeg', fps=fps) as writer:
-        for frame in processed_frames:
-            writer.append_data(frame)
-
-    # Read the final video as bytes and encode it
-    with open(output_path, 'rb') as f:
-        video_bytes = f.read()
-
-    print("Video size (bytes):", len(video_bytes))
-    # REMOVE AFTER DEBUGGING
-    with open("debug_output.mp4", "wb") as f:
-        f.write(video_bytes)
-
-    # Clean up
-    os.remove(output_path)
-
-    video_base64 = base64.b64encode(video_bytes).decode('utf-8')
+    video_base64 = save_processed_video(processed_frames, fps)
 
     return jsonify({
-        "image": video_base64
+        "video": video_base64
     })
 
