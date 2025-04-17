@@ -13,3 +13,4 @@ __pycache__/
 .env
 
 model_cache/
+new_logo_frames/
