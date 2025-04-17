@@ -27,6 +27,7 @@ from scipy.spatial.distance import cosine, euclidean
 from flask import jsonify
 import base64
 from PIL import Image
+import tempfile
 
 from models.model_load import model
 
@@ -111,7 +112,9 @@ def process_video(input_video_path, frame_skip=5):
 
             # draw a bounding box around each detected logo
             for input_logo, bbox in zip(input_logos, input_bboxes):
-                embedding = embedding_models[0].extract_embedding(Image.fromarray(input_logo))
+                # Get the logo region in rgb format
+                rgb_logo = cv2.cvtColor(input_logo, cv2.COLOR_BGR2RGB)
+                embedding = embedding_models[0].extract_embedding(Image.fromarray(rgb_logo))
                 faiss.normalize_L2(embedding) # normalize the embedding. Works really well with FAISS
 
                 if faiss_index.ntotal == 0: # First entry into FAISS
@@ -149,23 +152,32 @@ def process_video(input_video_path, frame_skip=5):
                     save_path = os.path.join(save_dir, f"frame_{frame_idx}_logo_{logo_id_counter}.jpg")
                     cv2.imwrite(save_path, frame)
 
-        processed_frames.append(frame)
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        processed_frames.append(rgb_frame)
         frame_idx += 1 # next frame
 
     cap.release()
 
-    video_bytes = io.BytesIO()
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp_outfile:
+        output_path = tmp_outfile.name
 
-    with imageio.get_writer(video_bytes, format='mp4', fps=fps) as writer:
+    with imageio.get_writer(output_path, format='ffmpeg', fps=fps) as writer:
         for frame in processed_frames:
-            writer.append_data(frame) 
+            writer.append_data(frame)
 
-    video_bytes.seek(0)
+    # Read the final video as bytes and encode it
+    with open(output_path, 'rb') as f:
+        video_bytes = f.read()
 
-    video_base64 = base64.b64encode(video_bytes.getvalue()).decode('utf-8')
+    print("Video size (bytes):", len(video_bytes))
+    # REMOVE AFTER DEBUGGING
+    with open("debug_output.mp4", "wb") as f:
+        f.write(video_bytes)
 
-    for faiss_idx, counter in logo_id_map.items():
-        print(f'{faiss_idx} appeared approx {logo_appearance_counts[counter] * 5} times')
+    # Clean up
+    os.remove(output_path)
+
+    video_base64 = base64.b64encode(video_bytes).decode('utf-8')
 
     return jsonify({
         "image": video_base64
