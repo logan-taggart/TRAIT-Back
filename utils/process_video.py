@@ -113,6 +113,7 @@ def add_logo_to_faiss(faiss_index, embedding, logo_id_map, logo_id_counter):
 def update_logo_in_faiss(faiss_index, embedding, logo_id_map, logo_appearance_counts, threshold=0.5):
     '''Search FAISS index for a logo and update counts if a match is found or a new entry is added'''
 
+    save_frame = False
     # Get the distance and index of the nearest neighbor
     D, I = faiss_index.search(np.array(embedding), k=1)
     # Check if the distance is less than the threshold (LOWER IS BETTER)
@@ -121,12 +122,14 @@ def update_logo_in_faiss(faiss_index, embedding, logo_id_map, logo_appearance_co
         assigned_id = logo_id_map[I[0][0]]
         # Increment the count of appearances for this logo
         logo_appearance_counts[assigned_id] += 1
+        save_frame = False
     else:
         # New logo seen, add it to FAISS
         assigned_id = add_logo_to_faiss(faiss_index, embedding, logo_id_map, len(logo_id_map))
         # Set the number of times we seen this new logo to 1 (first appearance)
         logo_appearance_counts[assigned_id] = 1
-    return assigned_id
+        save_frame = True
+    return assigned_id, save_frame
 
 
 def process_video(input_video_path, frame_skip=5):
@@ -144,6 +147,7 @@ def process_video(input_video_path, frame_skip=5):
 
     frame_idx = 0
     save_frame = False
+    saved_frame_data = []
     processed_frames = []
 
     while cap.isOpened():
@@ -166,7 +170,7 @@ def process_video(input_video_path, frame_skip=5):
 
                 # Process the embedding with FAISS
                 # Checks if the logo already exists in the FAISS index
-                assigned_id = update_logo_in_faiss(faiss_index, embedding, logo_id_map, logo_appearance_counts)
+                assigned_id, save_frame = update_logo_in_faiss(faiss_index, embedding, logo_id_map, logo_appearance_counts)
                     
                 draw_bb_box(bbox, frame, assigned_id)
 
@@ -175,6 +179,16 @@ def process_video(input_video_path, frame_skip=5):
                     os.makedirs(save_dir, exist_ok=True)
                     save_path = os.path.join(save_dir, f"frame_{frame_idx}_logo_{logo_id_counter}.jpg")
                     cv2.imwrite(save_path, frame)
+
+                    _, buffer = cv2.imencode('.jpg', input_logo)
+                    logo_b64 = base64.b64encode(buffer).decode('utf-8')
+
+                    x1, y1, x2, y2 = bbox
+                    saved_frame_data.append({
+                        "frame_idx": frame_idx,
+                        "logo_id": assigned_id,
+                        "logo_base64": logo_b64
+                    })
 
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         processed_frames.append(rgb_frame)
@@ -185,6 +199,8 @@ def process_video(input_video_path, frame_skip=5):
     video_base64 = save_processed_video(processed_frames, fps)
 
     return jsonify({
-        "video": video_base64
+        "video": video_base64,
+        "saved_frames": saved_frame_data,
+        "logo_appearance_count": logo_appearance_counts
     })
 
