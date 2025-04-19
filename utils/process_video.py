@@ -114,7 +114,6 @@ def update_logo_in_faiss(faiss_index, embedding, logo_id_map, logo_appearance_co
         save_frame = True
     return assigned_id, save_frame
 
-
 def process_video(input_video_path, frame_skip=5):
     # resnet size = 2048
     # clip size = 512
@@ -128,6 +127,8 @@ def process_video(input_video_path, frame_skip=5):
     output_video_path = "./processed_videos/processed_video.mp4"
     cap = cv2.VideoCapture(input_video_path)
     # This will give an error, but it still works. GO WITH IT
+    # Actually doesnt support avc1, so the video size is like 900mb.
+    # The reason we need avc1 is because we need the H264 cocec for the video to play within the application
     fourcc = cv2.VideoWriter_fourcc(*'avc1')
     fps = int(cap.get(cv2.CAP_PROP_FPS))
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -183,7 +184,6 @@ def process_video(input_video_path, frame_skip=5):
 
     cap.release()
     out.release()
-
 
     return jsonify({
         # "video": video_path,
