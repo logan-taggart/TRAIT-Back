@@ -81,23 +81,6 @@ def draw_bb_box(bbox, frame, ID):
     cv2.putText(frame, f"ID: {ID}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (77, 33, 191), 2)
 
 
-def save_processed_video(processed_frames, fps):
-    '''Save the processed video to a temporary file and return it as a base64 encoded string'''
-
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp_outfile:
-        output_path = tmp_outfile.name
-
-    with imageio.get_writer(output_path, format='ffmpeg', fps=fps) as writer:
-        for frame in processed_frames:
-            writer.append_data(frame)
-
-    with open(output_path, 'rb') as f:
-        video_bytes = f.read()
-
-    os.remove(output_path)
-    return base64.b64encode(video_bytes).decode('utf-8')
-
-
 def add_logo_to_faiss(faiss_index, embedding, logo_id_map, logo_id_counter):
     '''
     Add a new logo embedding to the FAISS index and update the ID map
@@ -142,8 +125,14 @@ def process_video(input_video_path, frame_skip=5):
     logo_id_map = {}  # maps FAISS index to logo ID
     logo_appearance_counts = defaultdict(int) # How many times a unique logo has appeared
     
+    output_video_path = "./processed_videos/processed_video.mp4"
     cap = cv2.VideoCapture(input_video_path)
+    # This will give an error, but it still works. GO WITH IT
+    fourcc = cv2.VideoWriter_fourcc(*'avc1')
     fps = int(cap.get(cv2.CAP_PROP_FPS))
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
 
     frame_idx = 0
     save_frame = False
@@ -164,8 +153,7 @@ def process_video(input_video_path, frame_skip=5):
             # draw a bounding box around each detected logo
             for input_logo, bbox in zip(input_logos, input_bboxes):
                 # Get the logo region in rgb format
-                rgb_logo = cv2.cvtColor(input_logo, cv2.COLOR_BGR2RGB)
-                embedding = embedding_models[0].extract_embedding(Image.fromarray(rgb_logo))
+                embedding = embedding_models[0].extract_embedding(input_logo)
                 faiss.normalize_L2(embedding) # normalize the embedding. Works really well with FAISS
 
                 # Process the embedding with FAISS
@@ -183,23 +171,22 @@ def process_video(input_video_path, frame_skip=5):
                     _, buffer = cv2.imencode('.jpg', input_logo)
                     logo_b64 = base64.b64encode(buffer).decode('utf-8')
 
-                    x1, y1, x2, y2 = bbox
+                    # x1, y1, x2, y2 = bbox
                     saved_frame_data.append({
                         "frame_idx": frame_idx,
                         "logo_id": assigned_id,
                         "logo_base64": logo_b64
                     })
 
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        processed_frames.append(rgb_frame)
+        out.write(frame)
         frame_idx += 1 # next frame
 
     cap.release()
+    out.release()
 
-    video_base64 = save_processed_video(processed_frames, fps)
 
     return jsonify({
-        "video": video_base64,
+        # "video": video_path,
         "saved_frames": saved_frame_data,
         "logo_appearance_count": logo_appearance_counts
     })

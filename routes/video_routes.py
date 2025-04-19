@@ -1,7 +1,7 @@
 import tempfile
 import os
 import io
-from flask import Blueprint, request
+from flask import Blueprint, request, send_file
 from flask_cors import CORS
 
 from utils.process_video import *
@@ -28,6 +28,15 @@ def detect_all():
     os.remove(temp_video_path)
 
     return response
+
+@video_blueprint.route("/fetch-processed-video", methods=["GET"])
+def fetch_processed_video():
+    video_path = './processed_videos/processed_video.mp4'
+
+    if not os.path.exists(video_path):
+        return {"error": "Video not found"}, 404
+
+    return send_file(video_path, mimetype='video/mp4')
 
 
 @video_blueprint.route("/detect-specific", methods=["POST"])
