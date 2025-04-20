@@ -12,6 +12,8 @@ from ultralytics import YOLO
 import os
 from collections import defaultdict
 import numpy as np
+import subprocess
+import imageio_ffmpeg
 
 from utils.embed import BEiTEmbedding, CLIPEmbedding, ResNetEmbedding
 beit = BEiTEmbedding()
@@ -124,7 +126,11 @@ def process_video(input_video_path, frame_skip=5):
     logo_id_map = {}  # maps FAISS index to logo ID
     logo_appearance_counts = defaultdict(int) # How many times a unique logo has appeared
     
-    output_video_path = "./processed_videos/processed_video.mp4"
+    output_video_dir = "./processed_videos"
+    os.makedirs(output_video_dir, exist_ok=True)
+    output_video_path = "./processed_videos/temp_processed_video.mp4"
+    temp_compressed_path = "./processed_videos/processed_video.mp4"
+
     cap = cv2.VideoCapture(input_video_path)
     # This will give an error, but it still works. GO WITH IT
     # Actually doesnt support avc1, so the video size is like 900mb.
@@ -138,7 +144,6 @@ def process_video(input_video_path, frame_skip=5):
     frame_idx = 0
     save_frame = False
     saved_frame_data = []
-    processed_frames = []
 
     while cap.isOpened():
         ret, frame = cap.read()
@@ -184,6 +189,16 @@ def process_video(input_video_path, frame_skip=5):
 
     cap.release()
     out.release()
+
+    # Lower CRF = Higher Quality and Less Compression
+    # Higher CRF = Lower Quality and More Compression
+    subprocess.run([
+        imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-i", output_video_path,
+        "-vcodec", "libx264", "-crf", "23", "-preset", "ultrafast",
+        temp_compressed_path
+    ])
+
+    os.replace(output_video_path, temp_compressed_path)
 
     return jsonify({
         # "video": video_path,

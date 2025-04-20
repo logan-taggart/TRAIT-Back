@@ -25,7 +25,8 @@ def detect_all():
     
     response = process_video(temp_video_path)
 
-    os.remove(temp_video_path)
+    os.remove("./processed_videos/processed_video.mp4")
+    os.rmdir("./processed_videos")
 
     return response
 
