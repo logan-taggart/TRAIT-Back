@@ -14,4 +14,5 @@ __pycache__/
 
 model_cache/
 new_logo_frames/
+processed_videos/
 *.mp4

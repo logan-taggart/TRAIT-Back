@@ -126,6 +126,11 @@ def process_video(input_video_path, frame_skip=5):
     logo_id_map = {}  # maps FAISS index to logo ID
     logo_appearance_counts = defaultdict(int) # How many times a unique logo has appeared
     
+    # Remove any existing processed video files
+    if os.path.exists("./processed_videos/processed_video.mp4"):
+        os.remove("./processed_videos/processed_video.mp4")
+        os.rmdir("./processed_videos")
+
     output_video_dir = "./processed_videos"
     os.makedirs(output_video_dir, exist_ok=True)
     output_video_path = "./processed_videos/temp_processed_video.mp4"
