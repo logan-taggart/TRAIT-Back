@@ -147,7 +147,7 @@ def verify_vote(input_embeddings, reference_embeddings, votes_needed):
     # Number of votes needed never reached. Return False
     return False
         
-def process_video(input_video_path, reference_image_path, votes_needed=4, frame_skip=5):
+def process_video_specific(input_video_path, reference_image_path, votes_needed=4, frame_skip=5):
     # resnet size = 2048
     # clip size = 512
     # beit size = 768

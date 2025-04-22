@@ -61,7 +61,7 @@ def detect_specific():
         tmp_img_file.write(reference_image.read())
         temp_img_path = tmp_img_file.name
 
-    response = process_video(temp_video_path, temp_img_path, similarity_threshold)
+    response = process_video_specific(temp_video_path, temp_img_path, similarity_threshold)
 
     os.remove(temp_video_path)
     os.remove(temp_img_path)
