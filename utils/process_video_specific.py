@@ -1,19 +1,13 @@
-import torch
-import torchvision
-import torch.nn as nn
-import torchvision.transforms as tr
 import cv2
 import faiss
 import numpy as np
-from PIL import Image
-from transformers import CLIPProcessor, CLIPModel, BeitFeatureExtractor, BeitModel
-from torchvision.models.feature_extraction import create_feature_extractor
 from ultralytics import YOLO
 import os
 from collections import defaultdict
 import numpy as np
 import subprocess
 import imageio_ffmpeg
+from PIL import Image
 
 from utils.embed import BEiTEmbedding, CLIPEmbedding, ResNetEmbedding
 beit = BEiTEmbedding()
@@ -22,14 +16,9 @@ resnet = ResNetEmbedding()
 
 embedding_models = [beit, clip, resnet]
 
-import imageio
-import io
-import imageio.v3 as iio
 from scipy.spatial.distance import cosine, euclidean
 from flask import jsonify
-import base64
-from PIL import Image
-import tempfile
+
 
 from models.model_load import model
 
@@ -199,6 +188,7 @@ def process_video(input_video_path, reference_image_path, votes_needed=4, frame_
     # Value is a list because the reference logo can have multiple logos
     reference_embeddings = {type(model).__name__: [] for model in embedding_models}
     for ref_logo in reference_logos:
+        ref_logo = Image.fromarray(ref_logo)
         for model in embedding_models:
             reference_embeddings[type(model).__name__].append(model.extract_embedding(ref_logo))
 
@@ -216,6 +206,7 @@ def process_video(input_video_path, reference_image_path, votes_needed=4, frame_
             # draw a bounding box around each detected logo
             for input_logo, bbox in zip(input_logos, input_bboxes):
                 # Get the three embeddings of logo found
+                input_logo = Image.fromarray(input_logo)
                 input_embeddings = {type(model).__name__: model.extract_embedding(input_logo) for model in embedding_models}
                 
                 embedding_faiss_cmp = input_embeddings['BEiTEmbedding'].copy() # copy the beit embedding from input_embeddings
