@@ -46,7 +46,7 @@ def extract_logo_regions(image, save_crop=False, output_dir="cropped_logos"):
         print("Error: Could not load image.")
         return [], []
 
-    results = model(img)
+    results = model(img,conf=0.6)
     logo_regions = []
     bounding_boxes = []
 
