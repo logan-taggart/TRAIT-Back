@@ -5,7 +5,6 @@ from flask import Blueprint, request, send_file
 from flask_cors import CORS
 
 from utils.process_video import *
-from utils.process_video_specific import *
 
 video_blueprint = Blueprint("video", __name__, url_prefix="/video")
 CORS(video_blueprint)

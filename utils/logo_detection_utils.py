@@ -71,3 +71,87 @@ def img_to_base64(img):
     _, buffer = cv2.imencode('.jpg', img)
     img_bytes = buffer.tobytes()
     return base64.b64encode(img_bytes).decode('utf-8')
+
+def draw_bb_box(bbox, frame, ID):
+    '''
+    Draws the bounding box around the logo in the frame
+    
+    bbox is the coordinates of the bouning box
+    frame is the image we want to draw on
+    ID is the identification of the detected logo
+    '''
+    x1, y1, x2, y2 = bbox
+    cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 255, 255), 5)
+    cv2.putText(frame, f"ID: {ID}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (77, 33, 191), 2)
+
+
+def add_logo_to_faiss(faiss_index, embedding, logo_id_map, logo_id_counter):
+    '''
+    Add a new logo embedding to the FAISS index and update the ID map
+    Assumes the the embedduing is already normalized
+    '''
+    # Add the embedding to the FAISS index (already normalized)
+    faiss_index.add(embedding)
+    # Update the logo ID map with the new logo ID
+    logo_id_map[faiss_index.ntotal - 1] = logo_id_counter
+    # Increment the logo ID counter for the next unique logo
+    return logo_id_counter + 1
+
+def update_logo_in_faiss(faiss_index, embedding, logo_id_map, logo_appearance_counts, threshold=0.5):
+    '''Search FAISS index for a logo and update counts if a match is found or a new entry is added'''
+
+    save_frame = False
+    # Get the distance and index of the nearest neighbor
+    D, I = faiss_index.search(np.array(embedding), k=1)
+    # Check if the distance is less than the threshold (LOWER IS BETTER)
+    if D[0][0] < threshold:
+        # Logo already exists
+        assigned_id = logo_id_map[I[0][0]]
+        # Increment the count of appearances for this logo
+        logo_appearance_counts[assigned_id] += 1
+        save_frame = False
+    else:
+        # New logo seen, add it to FAISS
+        assigned_id = add_logo_to_faiss(faiss_index, embedding, logo_id_map, len(logo_id_map))
+        # Set the number of times we seen this new logo to 1 (first appearance)
+        logo_appearance_counts[assigned_id] = 1
+        save_frame = True
+    return assigned_id, save_frame
+
+
+def verify_vote(input_embeddings, reference_embeddings, votes_needed, embedding_models):
+    ''' 
+    Parameters needed:
+    input_embeddings (dict)
+    reference_embeddings (dict)
+    votes_needed (int)
+    
+    Returns a True or False. If the number if votes is great enough
+    
+    '''
+    thresholds = {
+  'BEiTEmbedding': {'cosine': .3, 'euclidean': 110},
+  'CLIPEmbedding': {'cosine': .65, 'euclidean': 7.5},
+  'ResNetEmbedding': {'cosine': .75, 'euclidean': 50}
+}
+    votes = 0
+    
+    for model in embedding_models:
+        model_name = type(model).__name__
+        for ref_embedding in reference_embeddings[model_name]:
+            cosine_sim = compute_cosine_similarity(input_embeddings[model_name], ref_embedding)
+            euclidean_dist = compute_euclidean_distances(input_embeddings[model_name], ref_embedding)
+    
+            if cosine_sim >= thresholds[model_name]['cosine']:
+                votes += 1
+            if euclidean_dist <= thresholds[model_name]['euclidean']:
+                votes += 1
+
+            # If we reach the number of votes needed, return True.
+            # Has a chance to return early, saving computation time
+            if votes >= votes_needed:
+                return True
+
+    print(f"Votes: {votes}")
+    # Number of votes needed never reached. Return False
+    return False
