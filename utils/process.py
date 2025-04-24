@@ -1,14 +1,15 @@
-import os
-import torch
 import numpy as np
 import cv2
 from PIL import Image
-from scipy.spatial.distance import cosine, euclidean
+
 from flask import jsonify
-import base64
+
 
 from utils.embed import BEiTEmbedding, CLIPEmbedding, ResNetEmbedding
+# Trained YOLO model
 from models.model_load import model
+
+from utils.logo_detection_utils import *
 
 beit = BEiTEmbedding()
 clip = CLIPEmbedding()
@@ -25,12 +26,12 @@ def compare_logo_embeddings(input_path, reference_path, score_threshold, bb_colo
 
     bb_color = hex_to_bgr(bb_color)
 
-    input_logos, input_bboxes, input_img = extract_logo_regions(input_path, model)
-    reference_logos, _, _ = extract_logo_regions(reference_path, model)
+    input_logos, input_bboxes, input_img = extract_logo_regions(input_path, return_img=True)
+    reference_logos, _ = extract_logo_regions(reference_path)
 
     if not input_logos or not reference_logos:
         print("No logos detected in one or both images.")
-        return
+        return jsonify({"error": "No logos detected in one or both images."}), 400
 
     # Initialize score tracker
     # Matrix of len(reference_logos) x len(input_logos). 
@@ -108,59 +109,7 @@ def compare_logo_embeddings(input_path, reference_path, score_threshold, bb_colo
         "image": img_to_base64(input_img)
     })
     
-def hex_to_bgr(hex_color):
-    '''Converts a hex color to bgr (blue, green, red)
-    We do it this way because thats how OpenCV reads colors'''
-    hex_color = hex_color.lstrip('#')
-    bgr = tuple(int(hex_color[i:i+2], 16) for i in (4, 2, 0))
-    return bgr
 
-def compute_cosine_similarity(embedding1, embedding2):
-    return 1 - cosine(embedding1.ravel(), embedding2.ravel())
-
-def compute_euclidean_distances(embedding1, embedding2):
-    return euclidean(embedding1.ravel(), embedding2.ravel())
-
-
-def extract_logo_regions(image, model):
-    '''Returns all of the logos found within an image'''
-
-    # Read image
-    file_bytes = np.frombuffer(image.read(), np.uint8)
-    img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-    results = model(img)
-
-    logo_regions = []
-    bounding_boxes = []
-
-    for box in results[0].boxes:
-        xyxy = box.xyxy[0].tolist()
-        x1, y1, x2, y2 = map(int, xyxy)
-        cropped_logo = img[y1:y2, x1:x2]
-
-        if cropped_logo.size > 0:
-            height, width = cropped_logo.shape[:2]
-
-            # Calculate new width while maintaining aspect ratio
-            new_height = 128
-            new_width = int((new_height / height) * width)
-            
-            # Resize while keeping aspect ratio
-            resized_logo = cv2.resize(cropped_logo, (new_width, new_height))
-
-            # Append the logo and its bounding box to the list
-            logo_regions.append(resized_logo)
-            bounding_boxes.append((x1, y1, x2, y2))
-
-    return logo_regions, bounding_boxes, img
-
-def img_to_base64(img):
-    '''Converts an image (ndarray) to a base64-encoded string
-    This is so we can send the image back to the frontend using a json object'''
-
-    _, buffer = cv2.imencode('.jpg', img)
-    img_bytes = buffer.tobytes()
-    return base64.b64encode(img_bytes).decode('utf-8')
 
 def identify_all_logos(file, bb_color):
     '''Returns the image with bounding boxes around all logos found'''

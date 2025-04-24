@@ -1,14 +1,7 @@
-import torch
-import torchvision
-import torch.nn as nn
-import torchvision.transforms as tr
 import cv2
 import faiss
 import numpy as np
-from PIL import Image
-from transformers import CLIPProcessor, CLIPModel, BeitFeatureExtractor, BeitModel
 from torchvision.models.feature_extraction import create_feature_extractor
-from ultralytics import YOLO
 import os
 from collections import defaultdict
 import numpy as np
@@ -22,14 +15,9 @@ resnet = ResNetEmbedding()
 
 embedding_models = [beit, clip, resnet]
 
-import imageio
-import io
-import imageio.v3 as iio
-from scipy.spatial.distance import cosine, euclidean
 from flask import jsonify
 import base64
-from PIL import Image
-import tempfile
+
 
 from models.model_load import model
 
@@ -129,7 +117,7 @@ def process_video(input_video_path, frame_skip=5):
     # Remove any existing processed video files
     if os.path.exists("./processed_videos/processed_video.mp4"):
         os.remove("./processed_videos/processed_video.mp4")
-        os.rmdir("./processed_videos")
+
 
     output_video_dir = "./processed_videos"
     os.makedirs(output_video_dir, exist_ok=True)
