@@ -240,6 +240,17 @@ def process_video_specific(input_video_path, reference_image_path, votes_needed=
                     save_path = os.path.join(save_dir, f"frame_{frame_idx}_logo_{logo_id_counter}.jpg")
                     cv2.imwrite(save_path, frame)
 
+                    input_logo_np = np.array(input_logo)
+                    _, buffer = cv2.imencode('.jpg', input_logo_np)
+                    logo_b64 = base64.b64encode(buffer).decode('utf-8')
+
+                    # x1, y1, x2, y2 = bbox
+                    saved_frame_data.append({
+                        "frame_idx": frame_idx,
+                        "logo_id": assigned_id,
+                        "logo_base64": logo_b64
+                    })
+
 
         out.write(frame)  # write processed frame to output
 

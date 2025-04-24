@@ -3,6 +3,7 @@ import torch
 import numpy as np
 import logging
 
+import torch.nn as nn
 from torchvision.transforms import Resize, CenterCrop, ToTensor, Normalize, Compose
 from torchvision.models import resnet50, ResNet50_Weights
 from transformers import AutoImageProcessor, BeitModel, CLIPModel, CLIPProcessor
@@ -40,6 +41,7 @@ class CLIPEmbedding:
 class ResNetEmbedding:
     def __init__(self, model_name="resnet50"):
         self.model = resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
+        self.model.fc = nn.Identity()
         self.model.eval()
         self.transform = Compose([
             Resize(256),
