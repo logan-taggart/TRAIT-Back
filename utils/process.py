@@ -17,7 +17,7 @@ resnet = ResNetEmbedding()
 
 embedding_models = [beit, clip, resnet]
 
-def compare_logo_embeddings(input_path, reference_path, score_threshold, bb_color):
+def compare_logo_embeddings(input_path, reference_path, score_threshold, bb_color,bounding_box_threshold):
     thresholds = {
         'BEiTEmbedding': {'cosine': .3, 'euclidean': 110},
         'CLIPEmbedding': {'cosine': .65, 'euclidean': 7.5},
@@ -25,9 +25,8 @@ def compare_logo_embeddings(input_path, reference_path, score_threshold, bb_colo
     }
 
     bb_color = hex_to_bgr(bb_color)
-
-    input_logos, input_bboxes, input_img = extract_logo_regions(input_path, return_img=True)
-    reference_logos, _ = extract_logo_regions(reference_path)
+    input_logos, input_bboxes, input_img = extract_logo_regions(input_path,bounding_box_threshold, return_img=True)
+    reference_logos, _ = extract_logo_regions(reference_path,bounding_box_threshold)
 
     if not input_logos or not reference_logos:
         print("No logos detected in one or both images.")
@@ -111,14 +110,14 @@ def compare_logo_embeddings(input_path, reference_path, score_threshold, bb_colo
     
 
 
-def identify_all_logos(file, bb_color):
+def identify_all_logos(file, bb_color, bounding_box_threshold):
     '''Returns the image with bounding boxes around all logos found'''
     file_bytes = np.frombuffer(file.read(), np.uint8)
     img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-
+   
     results = model(img)
 
-    confidence_threshold = 0.25
+    confidence_threshold = bounding_box_threshold
     bb_color = hex_to_bgr(bb_color)
     thickness = 2
 

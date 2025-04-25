@@ -16,14 +16,16 @@ def detect_all():
     
     main_video = request.files["main_video"]
     bb_color = request.form.get("bb_color")
-
+    bounding_box_threshold = float(request.form.get("bounding_box_threshold", 0.25))
+    bounding_box_threshold = float(bounding_box_threshold)/100 #convert to decimal percent for func parameter 
     video_stream = io.BytesIO(main_video.read())
+    
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp_file:
         tmp_file.write(video_stream.read())
         temp_video_path = tmp_file.name
     
-    response = process_video(temp_video_path)
+    response = process_video(temp_video_path,bounding_box_threshold)
 
     os.remove(temp_video_path)
 
@@ -48,6 +50,9 @@ def detect_specific():
     reference_image = request.files["reference_image"]
     similarity_threshold = int(request.form.get("confidence"))
     bb_color = request.form.get("bb_color")
+    bounding_box_threshold = float(request.form.get("bounding_box_threshold", 0.25))  # with default
+    bounding_box_threshold = float(bounding_box_threshold)/100 #convert to decimal percent for func parameter 
+
 
     # Save the main video to a temporary file
     video_stream = io.BytesIO(main_video.read())
@@ -60,7 +65,7 @@ def detect_specific():
         tmp_img_file.write(reference_image.read())
         temp_img_path = tmp_img_file.name
 
-    response = process_video_specific(temp_video_path, temp_img_path, similarity_threshold)
+    response = process_video_specific(temp_video_path, temp_img_path, bounding_box_threshold,similarity_threshold)
 
     os.remove(temp_video_path)
     os.remove(temp_img_path)

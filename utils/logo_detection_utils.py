@@ -21,7 +21,7 @@ def compute_euclidean_distances(embedding1, embedding2):
     return euclidean(embedding1.ravel(), embedding2.ravel())
 
 
-def extract_logo_regions(image, save_crop=False, output_dir="cropped_logos", return_img=False):
+def extract_logo_regions(image,bounding_box_threshold, save_crop=False, output_dir="cropped_logos", return_img=False):
     """Runs YOLO on an image and extracts detected logo regions."""
     # Check if input is a file path or an image array
     
@@ -33,7 +33,8 @@ def extract_logo_regions(image, save_crop=False, output_dir="cropped_logos", ret
     if img is None:
         print("Error: Could not load image.")
         return [], [], None
-    results = model(img)
+    print("Boundary box threshold:", bounding_box_threshold)
+    results = model(img,conf=bounding_box_threshold)
     logo_regions = []
     bounding_boxes = []
 

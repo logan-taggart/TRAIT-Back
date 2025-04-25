@@ -20,8 +20,9 @@ import base64
 
 from utils.logo_detection_utils import *
 
+
 # FOR GENERAL VIDEO SEARCH
-def process_video(input_video_path, frame_skip=5):
+def process_video(input_video_path,bounding_box_threshold,frame_skip=5):
     # resnet size = 2048
     # clip size = 512
     # beit size = 768
@@ -62,9 +63,10 @@ def process_video(input_video_path, frame_skip=5):
 
         if frame_idx % frame_skip == 0:  # process every 5th frame
             print(f"Processing frame {frame_idx}")
+            
 
             # extract detected logos from the current frame
-            input_logos, input_bboxes = extract_logo_regions(frame, save_crop=False)
+            input_logos, input_bboxes = extract_logo_regions(frame,bounding_box_threshold,save_crop=False)
 
             # draw a bounding box around each detected logo
             for input_logo, bbox in zip(input_logos, input_bboxes):
@@ -118,7 +120,7 @@ def process_video(input_video_path, frame_skip=5):
 
 
 # FOR SPECIFIC VIDEO SEARCH
-def process_video_specific(input_video_path, reference_image_path, votes_needed=2, frame_skip=5):
+def process_video_specific(input_video_path, reference_image_path,bounding_box_threshold, votes_needed=2, frame_skip=5):
     # resnet size = 2048
     # clip size = 512
     # beit size = 768
@@ -151,7 +153,7 @@ def process_video_specific(input_video_path, reference_image_path, votes_needed=
     save_frame = False
     saved_frame_data = []
 
-    reference_logos, _ = extract_logo_regions(reference_image_path, save_crop=False)
+    reference_logos, _ = extract_logo_regions(reference_image_path, bounding_box_threshold,save_crop=False)
 
     # Get the reference logo embeddings
     # Store it as a dict. Key: Model_name, value: [Vector]
@@ -171,7 +173,7 @@ def process_video_specific(input_video_path, reference_image_path, votes_needed=
             print(f"Processing frame {frame_idx}")
 
             # extract detected logos from the current frame
-            input_logos, input_bboxes = extract_logo_regions(frame, save_crop=False)
+            input_logos, input_bboxes = extract_logo_regions(frame,bounding_box_threshold, save_crop=False)
 
             # draw a bounding box around each detected logo
             for input_logo, bbox in zip(input_logos, input_bboxes):

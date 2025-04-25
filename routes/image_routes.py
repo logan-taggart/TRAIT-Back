@@ -18,8 +18,11 @@ def detect_all():
 
     main_image = request.files["main_image"]
     bb_color = request.form.get("bb_color")
+    bounding_box_threshold = float(request.form.get("bounding_box_threshold", 0.25))  # with default
+    bounding_box_threshold = float(bounding_box_threshold)/100 #convert to decimal percent for func parameter 
 
-    return identify_all_logos(main_image, bb_color)
+
+    return identify_all_logos(main_image, bb_color,bounding_box_threshold)
 
 
 @image_blueprint.route("/detect-specific", methods=["POST"])
@@ -31,5 +34,9 @@ def detect_specific():
     reference_image = request.files["reference_image"]
     similarity_threshold = int(request.form.get("confidence"))
     bb_color = request.form.get("bb_color")
+    bounding_box_threshold = float(request.form.get("bounding_box_threshold", 0.25))  # with default
+    bounding_box_threshold = float(bounding_box_threshold)/100 #convert to decimal percent for func parameter 
 
-    return compare_logo_embeddings(main_image, reference_image, similarity_threshold, bb_color)
+
+
+    return compare_logo_embeddings(main_image, reference_image, similarity_threshold, bb_color,bounding_box_threshold)
