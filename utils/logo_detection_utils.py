@@ -21,7 +21,7 @@ def compute_euclidean_distances(embedding1, embedding2):
     return euclidean(embedding1.ravel(), embedding2.ravel())
 
 
-def extract_logo_regions(image,bounding_box_threshold, save_crop=False, output_dir="cropped_logos", return_img=False):
+def extract_logo_regions(image, bounding_box_threshold, save_crop=False, output_dir="cropped_logos", return_img=False):
     """Runs YOLO on an image and extracts detected logo regions."""
     # Check if input is a file path or an image array
     
@@ -35,7 +35,10 @@ def extract_logo_regions(image,bounding_box_threshold, save_crop=False, output_d
         return [], [], None
     print("Boundary box threshold:", bounding_box_threshold)
     results = model(img,conf=bounding_box_threshold)
+
+    # A list of cropped logos
     logo_regions = []
+    # A list of bounding boxes
     bounding_boxes = []
 
     if save_crop and not os.path.exists(output_dir):
@@ -56,9 +59,7 @@ def extract_logo_regions(image,bounding_box_threshold, save_crop=False, output_d
             bounding_boxes.append((x1, y1, x2, y2))
             print(f"Logo {idx} detected at coordinates: ({x1}, {y1}) -> ({x2}, {y2})")
 
-    print(f"Total logos detected: {len(logo_regions)}")
-
-
+    
     if return_img:
         return logo_regions, bounding_boxes, img
     else:
@@ -156,3 +157,46 @@ def verify_vote(input_embeddings, reference_embeddings, votes_needed, embedding_
     print(f"Votes: {votes}")
     # Number of votes needed never reached. Return False
     return False
+
+
+def extract_and_record_logo(image, bbox, bb_color):
+    '''
+    Draws a bounding box around the logo and returns the bounding box info
+    
+    Expects:
+    - image: the image to draw on
+    - bbox: the bounding box coordinates (x1, y1, x2, y2)
+    - bb_color: the color of the bounding box in brg format
+    '''
+    x1, y1, x2, y2 = bbox
+    cv2.rectangle(image, (x1, y1), (x2, y2), bb_color, 2)
+
+    box_width = round(x2 - x1, 2)
+    box_height = round(y2 - y1, 2)
+    box_area = round(box_width * box_height, 2)
+
+    image_height, image_width = image.shape[:2]
+    total_image_area = image_width * image_height
+    coverage_percentage = round((box_area / total_image_area) * 100, 2)
+
+    box_info = {
+        "x1": x1,
+        "y1": y1,
+        "x2": x2,
+        "y2": y2,
+        "box_width": box_width,
+        "box_height": box_height,
+        "box_area": box_area,
+        "box_coverage_percentage": coverage_percentage,
+        "cropped_logo": img_to_base64(image[y1:y2, x1:x2])
+    }
+
+    return box_info
+
+
+def convert_file_to_image(file):
+    '''Converts a file to an image so OpenCV and YOLO model can use it'''
+
+    file_bytes = np.frombuffer(file.read(), np.uint8)
+    img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+    return img

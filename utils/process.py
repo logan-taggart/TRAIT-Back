@@ -17,16 +17,27 @@ resnet = ResNetEmbedding()
 
 embedding_models = [beit, clip, resnet]
 
-def compare_logo_embeddings(input_path, reference_path, score_threshold, bb_color,bounding_box_threshold):
+def compare_logo_embeddings(input_file, reference_file, score_threshold, bb_color,bounding_box_threshold):
     thresholds = {
         'BEiTEmbedding': {'cosine': .3, 'euclidean': 110},
         'CLIPEmbedding': {'cosine': .65, 'euclidean': 7.5},
         'ResNetEmbedding': {'cosine': .75, 'euclidean': 50}
     }
 
+    # Convert the input file to an image we can use with OpenCV and YOLO model
+    img = convert_file_to_image(input_file)
+    # Convert the reference file to an image we can use with OpenCV and YOLO model
+    reference_img = convert_file_to_image(reference_file)
+
+    # Convert the color from hex to BGR for OpenCV
     bb_color = hex_to_bgr(bb_color)
-    input_logos, input_bboxes, input_img = extract_logo_regions(input_path,bounding_box_threshold, return_img=True)
-    reference_logos, _ = extract_logo_regions(reference_path,bounding_box_threshold)
+
+    # Get the bounding boxes for the logos in the input image and reference image
+    # input_logos is the list of cropped logos
+    # input_bboxes is the list of bounding boxes for each logo found in the image (tuple of (x1, y1, x2, y2))
+    input_logos, input_bboxes, input_img = extract_logo_regions(img, bounding_box_threshold, return_img=True)
+    # reference_logos is the list of cropped logos
+    reference_logos, _ = extract_logo_regions(reference_img, bounding_box_threshold)
 
     if not input_logos or not reference_logos:
         print("No logos detected in one or both images.")
@@ -79,29 +90,9 @@ def compare_logo_embeddings(input_path, reference_path, score_threshold, bb_colo
         for j in range(len(input_logos)): # Iterate over input logos (columns)
             
             if scores[i][j] >= score_threshold: # Check per reference logo
-                x1, y1, x2, y2 = input_bboxes[j]
-
-                cv2.rectangle(input_img, (x1, y1), (x2, y2), bb_color, 2)
-
-                box_area = round((x2 - x1) * (y2 - y1), 2)
-                box_height = round(y2 - y1, 2)
-                box_width = x2 - x1
-                image_height, image_width = input_img.shape[:2]
-                total_image_area = image_width * image_height
-                coverage_percentage = round((box_area / total_image_area) * 100, 2)
+                
                 # Add bounding box information to bounding_boxes_info
-                bounding_boxes_info.append({
-                    "x1": x1,
-                    "y1": y1,
-                    "x2": x2,
-                    "y2": y2,
-                    "confidence": scores[i][j],
-                    "box_width": box_width,
-                    "box_height":box_height,
-                    "box_area": box_area,
-                    "box_coverage_percentage": coverage_percentage,
-                    "cropped_logo": img_to_base64(input_img[y1:y2, x1:x2])
-                })
+                bounding_boxes_info.append(extract_and_record_logo(input_img, input_bboxes[j], bb_color))
 
     return jsonify({
         "bounding_boxes": bounding_boxes_info,
@@ -114,48 +105,21 @@ def identify_all_logos(file, bb_color, bounding_box_threshold):
     '''Returns the image with bounding boxes around all logos found'''
     file_bytes = np.frombuffer(file.read(), np.uint8)
     img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-   
-    results = model(img)
+    
+    # input_logos is the list of cropped logos
+    # bounding_boxes is a list of bounding boxes for each logo found in the image (tuple of (x1, y1, x2, y2))
+    input_logos, bounding_boxes = extract_logo_regions(img, bounding_box_threshold)
 
-    confidence_threshold = bounding_box_threshold
+    # Convert for to bgr for OpenCV
     bb_color = hex_to_bgr(bb_color)
-    thickness = 2
-
-    # Get the image width and height
-    image_height, image_width = img.shape[:2]
-    # Get the total image area
-    total_image_area = image_width * image_height
-
+    
     # Use this to send bounding box info back to frontend
     bounding_boxes_info = []
 
-    for box in results[0].boxes:
-        if box.conf[0].item() > confidence_threshold:
-            xyxy = box.xyxy[0].tolist()
-            x1, y1, x2, y2 = map(int, xyxy)
-
-            # Calculate the bounding box area
-            box_width = round(x2 - x1, 2)
-            box_height = round(y2 - y1, 2)
-            box_area = round(box_width * box_height, 2)
-
-            # Calculate percentage coverage of the logo within the image
-            coverage_percentage = round((box_area / total_image_area) * 100, 2)
-
-            # Save all of the bounding box info into this dict. This is sent to frontend
-            bounding_boxes_info.append({
-                "x1": x1,
-                "y1": y1,
-                "x2": x2,
-                "y2": y2,
-                "box_width": box_width,
-                "box_height": box_height,
-                "box_area": box_area,
-                "box_coverage_percentage": coverage_percentage,
-                "cropped_logo": img_to_base64(img[y1:y2, x1:x2])
-            })
-
-            cv2.rectangle(img, (x1, y1), (x2, y2), bb_color, thickness)
+    for box in bounding_boxes:
+        
+        # Save all of the bounding box info into this dict. This is sent to frontend
+        bounding_boxes_info.append(extract_and_record_logo(img, box, bb_color))
 
     
     # Make image base64 so it can be jsonifyed.
@@ -165,3 +129,4 @@ def identify_all_logos(file, bb_color, bounding_box_threshold):
         "bounding_boxes": bounding_boxes_info,
         "image": img_base64
     })
+
