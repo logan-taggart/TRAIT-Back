@@ -18,12 +18,7 @@ resnet = ResNetEmbedding()
 embedding_models = [beit, clip, resnet]
 
 def compare_logo_embeddings(input_file, reference_file, score_threshold, bb_color,bounding_box_threshold):
-    thresholds = {
-        'BEiTEmbedding': {'cosine': .3, 'euclidean': 110},
-        'CLIPEmbedding': {'cosine': .65, 'euclidean': 7.5},
-        'ResNetEmbedding': {'cosine': .75, 'euclidean': 50}
-    }
-
+        
     # Convert the input file to an image we can use with OpenCV and YOLO model
     img = convert_file_to_image(input_file)
     # Convert the reference file to an image we can use with OpenCV and YOLO model
@@ -43,61 +38,28 @@ def compare_logo_embeddings(input_file, reference_file, score_threshold, bb_colo
         print("No logos detected in one or both images.")
         return jsonify({"error": "No logos detected in one or both images."}), 400
 
-    # Initialize score tracker
-    # Matrix of len(reference_logos) x len(input_logos). 
-    # This keeps the scores separate for each reference logo found
-    scores = [[0] * len(input_logos) for _ in range(len(reference_logos))]
-
     bounding_boxes_info = []  # Will contain bounding box data
 
-    # For each embedding model
-    for feature_extractor in embedding_models:
-         # Get the name of the embedding model so we can index the thresholds dict
-        model_name = type(feature_extractor).__name__
+    # Creates a dictionary of embeddings for each model
+    # ex. input_embeddings = {'BEiTEmbedding': [embedding1, embedding2], 'CLIPEmbedding': [embedding3, embedding4], 'ResNetEmbedding': [embedding5, embedding6]}
+    input_embeddings = {type(emb).__name__: [emb.extract_embedding(Image.fromarray(logo)) for logo in input_logos] for emb in embedding_models}
+    reference_embeddings = {type(emb).__name__: [emb.extract_embedding(Image.fromarray(logo)) for logo in reference_logos] for emb in embedding_models}
 
-        # Get model-specific thresholds
-        # This is from the dict defined at the function above
-        cosine_threshold = thresholds[model_name]["cosine"]
-        euclidean_threshold = thresholds[model_name]["euclidean"]
+    # Iterate over each input logo and reference logo
+    for i in range(len(reference_logos)):
+        for j in range(len(input_logos)):
+            # Gather embeddings per model for this pair
+            input_embeds = {emb_model: input_embeddings[emb_model][j] for emb_model in input_embeddings}
+            reference_embeds = {emb_model: [reference_embeddings[emb_model][i]] for emb_model in reference_embeddings}
 
-        # Compute embeddings and put them into an array
-        input_embeddings = [feature_extractor.extract_embedding(Image.fromarray(logo)) for logo in input_logos]
-        reference_embeddings = [feature_extractor.extract_embedding(Image.fromarray(logo)) for logo in reference_logos]
-
-
-        # Iterate through each embeddings (basically each logo)
-        for i, ref_embedding in enumerate(reference_embeddings):
-            ref_embedding = ref_embedding.reshape(1, -1)  # Ensure 2D
-            for j, input_embedding in enumerate(input_embeddings):
-
-                input_embedding = input_embedding.reshape(1, -1)  # Ensure 2D
-                # Compute similarity scores
-                cosine_sim = compute_cosine_similarity(input_embedding, ref_embedding)
-                euclidean_dist = compute_euclidean_distances(input_embedding, ref_embedding)
-
-                # Check if similarities meet the model specific thresholds
-                # Again, scores is a 2d array. Rows = num of reference images, cols = num of main image
-                if cosine_sim >= cosine_threshold:
-                    scores[i][j] += 1 # Plus 1 if cosine sim is met
-                if euclidean_dist <= euclidean_threshold:
-                    scores[i][j] += 1 # Plus 1 if euclidean distance is met
-
-                # Print what the scores are
-                print(f'{model_name} score: {scores[i][j]}')
-
-    # Final decision: Classify as match if score is at least score_threshold/6
-    for i in range(len(reference_logos)): # Iterate over reference logos (rows)
-        for j in range(len(input_logos)): # Iterate over input logos (columns)
-            
-            if scores[i][j] >= score_threshold: # Check per reference logo
-                
-                # Add bounding box information to bounding_boxes_info
+            # If the images are similar enough, draw a bounding box around the logo in the input image
+            if verify_vote(input_embeds, reference_embeds, score_threshold, embedding_models):
                 bounding_boxes_info.append(extract_and_record_logo(input_img, input_bboxes[j], bb_color))
 
-    return jsonify({
-        "bounding_boxes": bounding_boxes_info,
-        "image": img_to_base64(input_img)
-    })
+        return jsonify({
+            "bounding_boxes": bounding_boxes_info,
+            "image": img_to_base64(input_img)
+        })
     
 
 

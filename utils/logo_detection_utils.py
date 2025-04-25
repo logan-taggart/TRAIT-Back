@@ -132,21 +132,21 @@ def verify_vote(input_embeddings, reference_embeddings, votes_needed, embedding_
     
     '''
     thresholds = {
-  'BEiTEmbedding': {'cosine': .3, 'euclidean': 110},
-  'CLIPEmbedding': {'cosine': .65, 'euclidean': 7.5},
-  'ResNetEmbedding': {'cosine': .75, 'euclidean': 50}
-}
+        'BEiTEmbedding': {'cosine': .3, 'euclidean': 110},
+        'CLIPEmbedding': {'cosine': .65, 'euclidean': 7.5},
+        'ResNetEmbedding': {'cosine': .75, 'euclidean': 50}
+        }
     votes = 0
     
-    for model in embedding_models:
-        model_name = type(model).__name__
-        for ref_embedding in reference_embeddings[model_name]:
-            cosine_sim = compute_cosine_similarity(input_embeddings[model_name], ref_embedding)
-            euclidean_dist = compute_euclidean_distances(input_embeddings[model_name], ref_embedding)
+    for emb_model in embedding_models:
+        emb_model_name = type(emb_model).__name__
+        for ref_embedding in reference_embeddings[emb_model_name]:
+            cosine_sim = compute_cosine_similarity(input_embeddings[emb_model_name], ref_embedding)
+            euclidean_dist = compute_euclidean_distances(input_embeddings[emb_model_name], ref_embedding)
     
-            if cosine_sim >= thresholds[model_name]['cosine']:
+            if cosine_sim >= thresholds[emb_model_name]['cosine']:
                 votes += 1
-            if euclidean_dist <= thresholds[model_name]['euclidean']:
+            if euclidean_dist <= thresholds[emb_model_name]['euclidean']:
                 votes += 1
 
             # If we reach the number of votes needed, return True.
@@ -168,15 +168,23 @@ def extract_and_record_logo(image, bbox, bb_color):
     - bbox: the bounding box coordinates (x1, y1, x2, y2)
     - bb_color: the color of the bounding box in brg format
     '''
+
+    # unpack the bounding box coordinates
     x1, y1, x2, y2 = bbox
+
+    # Draw the bounding box on the image using the correct color. Thickness of 2
     cv2.rectangle(image, (x1, y1), (x2, y2), bb_color, 2)
 
+
+    # Calculate the dimensions and area of the bounding box
     box_width = round(x2 - x1, 2)
     box_height = round(y2 - y1, 2)
     box_area = round(box_width * box_height, 2)
 
+    # Get the dimensions of the image and calculate the coverage percentage
     image_height, image_width = image.shape[:2]
     total_image_area = image_width * image_height
+    # How much the bounding box covers the image
     coverage_percentage = round((box_area / total_image_area) * 100, 2)
 
     box_info = {
@@ -191,6 +199,7 @@ def extract_and_record_logo(image, bbox, bb_color):
         "cropped_logo": img_to_base64(image[y1:y2, x1:x2])
     }
 
+    # Return a dict with the bounding box info
     return box_info
 
 
