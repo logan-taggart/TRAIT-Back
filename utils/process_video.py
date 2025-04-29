@@ -20,28 +20,35 @@ import base64
 
 from utils.logo_detection_utils import *
 
-
-# FOR GENERAL VIDEO SEARCH
-def process_video(input_video_path,bounding_box_threshold,frame_skip=5):
+def setup_faiss(embedding_dim=768):
     # resnet size = 2048
     # clip size = 512
     # beit size = 768
-    embedding_dim = 768 # Size for BEIT
+
+    # Initialize FAISS index for L2 distance
+    faiss_index = faiss.IndexFlatL2(embedding_dim)
     faiss_index = faiss.IndexFlatL2(embedding_dim)
     logo_id_counter = 0 # How many unique logos we've seen
     logo_id_map = {}  # maps FAISS index to logo ID
     logo_appearance_counts = defaultdict(int) # How many times a unique logo has appeared
-    
+    return faiss_index, logo_id_counter, logo_id_map, logo_appearance_counts
+
+def setup_directories():
     # Remove any existing processed video files
     if os.path.exists("./processed_videos/processed_video.mp4"):
         os.remove("./processed_videos/processed_video.mp4")
 
 
+    # Create the output directory if it doesn't exist
     output_video_dir = "./processed_videos"
     os.makedirs(output_video_dir, exist_ok=True)
+    # Where the processed video will be saved
     output_video_path = "./processed_videos/temp_processed_video.mp4"
     temp_compressed_path = "./processed_videos/processed_video.mp4"
 
+    return output_video_path, temp_compressed_path
+
+def setup_opencv_video(input_video_path, output_video_path):
     cap = cv2.VideoCapture(input_video_path)
     # This will give an error, but it still works. GO WITH IT
     # Actually doesnt support avc1, so the video size is like 900mb.
@@ -52,7 +59,39 @@ def process_video(input_video_path,bounding_box_threshold,frame_skip=5):
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
 
+    return cap, out
+
+def run_ffmpeg_subprocess(input_video_path, output_video_path):
+    # Lower CRF = Higher Quality and Less Compression
+    # Higher CRF = Lower Quality and More Compression
+    subprocess.run([
+        imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-i", input_video_path,
+        "-vcodec", "libx264", "-crf", "23", "-preset", "ultrafast",
+        output_video_path
+    ])
+
+    # Replace the original video with the processed one
+    os.replace(input_video_path, output_video_path)
+
+
+# FOR GENERAL VIDEO SEARCH
+def process_video(input_video_path, bounding_box_threshold, frame_skip=5):
+    
+    # Initialize FAISS, the counter for what logo ID we are on, and the logo appearance counts
+    # FAISS index is used to store the logo embeddings and their corresponding IDs
+    # logo_id_counter is used to assign unique IDs to logos
+    # logo_id_map is used to map FAISS index to logo ID
+    # logo_appearance_counts is used to count how many times each logo has appeared
+    faiss_index, logo_id_counter, logo_id_map, logo_appearance_counts = setup_faiss(embedding_dim=768)
+    
+    output_video_path, temp_compressed_path = setup_directories()
+    
+    # Setup the video capture and writer to process the video
+    cap, out = setup_opencv_video(input_video_path, output_video_path)
+    
+
     frame_idx = 0
+    # save_frame is a flag to determine if we should save the frame and info with the logo bounding box
     save_frame = False
     saved_frame_data = []
 
@@ -64,7 +103,6 @@ def process_video(input_video_path,bounding_box_threshold,frame_skip=5):
         if frame_idx % frame_skip == 0:  # process every 5th frame
             print(f"Processing frame {frame_idx}")
             
-
             # extract detected logos from the current frame
             input_logos, input_bboxes = extract_logo_regions(frame,bounding_box_threshold,save_crop=False)
 
@@ -81,20 +119,8 @@ def process_video(input_video_path,bounding_box_threshold,frame_skip=5):
                 draw_bb_box(bbox, frame, assigned_id)
 
                 if save_frame:
-                    save_dir = "new_logo_frames"
-                    os.makedirs(save_dir, exist_ok=True)
-                    save_path = os.path.join(save_dir, f"frame_{frame_idx}_logo_{logo_id_counter}.jpg")
-                    cv2.imwrite(save_path, frame)
-
-                    _, buffer = cv2.imencode('.jpg', input_logo)
-                    logo_b64 = base64.b64encode(buffer).decode('utf-8')
-
-                    # x1, y1, x2, y2 = bbox
-                    saved_frame_data.append({
-                        "frame_idx": frame_idx,
-                        "logo_id": assigned_id,
-                        "logo_base64": logo_b64
-                    })
+                    # Save the frame with the logo bounding box and return the logo ID and base64 encoded logo
+                    saved_frame_data.append(save_frame_func(frame, frame_idx, logo_id_counter, input_logo))
 
         out.write(frame)
         frame_idx += 1 # next frame
@@ -102,15 +128,7 @@ def process_video(input_video_path,bounding_box_threshold,frame_skip=5):
     cap.release()
     out.release()
 
-    # Lower CRF = Higher Quality and Less Compression
-    # Higher CRF = Lower Quality and More Compression
-    subprocess.run([
-        imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-i", output_video_path,
-        "-vcodec", "libx264", "-crf", "23", "-preset", "ultrafast",
-        temp_compressed_path
-    ])
-
-    os.replace(output_video_path, temp_compressed_path)
+    run_ffmpeg_subprocess(output_video_path, temp_compressed_path)
 
     return jsonify({
         # "video": video_path,
@@ -121,39 +139,24 @@ def process_video(input_video_path,bounding_box_threshold,frame_skip=5):
 
 # FOR SPECIFIC VIDEO SEARCH
 def process_video_specific(input_video_path, reference_image_path,bounding_box_threshold, votes_needed=2, frame_skip=5):
-    # resnet size = 2048
-    # clip size = 512
-    # beit size = 768
-    embedding_dim = 768 # Size for BEIT
-    faiss_index = faiss.IndexFlatL2(embedding_dim)
-    logo_id_counter = 0 # How many unique logos we've seen
-    logo_id_map = {}  # maps FAISS index to logo ID
-    logo_appearance_counts = defaultdict(int) # How many times a unique logo has appeared
     
-    # Remove any existing processed video files
-    if os.path.exists("./processed_videos/processed_video.mp4"):
-        os.remove("./processed_videos/processed_video.mp4")
+    # Initialize FAISS, the counter for what logo ID we are on, and the logo appearance counts
+    # FAISS index is used to store the logo embeddings and their corresponding IDs
+    # logo_id_counter is used to assign unique IDs to logos
+    # logo_id_map is used to map FAISS index to logo ID
+    # logo_appearance_counts is used to count how many times each logo has appeared
+    faiss_index, logo_id_counter, logo_id_map, logo_appearance_counts = setup_faiss(embedding_dim=768)
+    
+    output_video_path, temp_compressed_path = setup_directories()
 
-    output_video_dir = "./processed_videos"
-    os.makedirs(output_video_dir, exist_ok=True)
-    output_video_path = "./processed_videos/temp_processed_video.mp4"
-    temp_compressed_path = "./processed_videos/processed_video.mp4"
-
-    cap = cv2.VideoCapture(input_video_path)
-    # This will give an error, but it still works. GO WITH IT
-    # Actually doesnt support avc1, so the video size is like 900mb.
-    # The reason we need avc1 is because we need the H264 cocec for the video to play within the application
-    fourcc = cv2.VideoWriter_fourcc(*'avc1')
-    fps = int(cap.get(cv2.CAP_PROP_FPS))
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
+    # Setup the video capture and writer to process the video
+    cap, out = setup_opencv_video(input_video_path, output_video_path)
 
     frame_idx = 0
     save_frame = False
     saved_frame_data = []
 
-    reference_logos, _ = extract_logo_regions(reference_image_path, bounding_box_threshold,save_crop=False)
+    reference_logos, _ = extract_logo_regions(reference_image_path, bounding_box_threshold, save_crop=False)
 
     # Get the reference logo embeddings
     # Store it as a dict. Key: Model_name, value: [Vector]
@@ -237,21 +240,8 @@ def process_video_specific(input_video_path, reference_image_path,bounding_box_t
                             print("VOTE FAILED >:(")
                     
                 if save_frame:
-                    save_dir = "new_logo_frames"
-                    os.makedirs(save_dir, exist_ok=True)
-                    save_path = os.path.join(save_dir, f"frame_{frame_idx}_logo_{logo_id_counter}.jpg")
-                    cv2.imwrite(save_path, frame)
-
-                    input_logo_np = np.array(input_logo)
-                    _, buffer = cv2.imencode('.jpg', input_logo_np)
-                    logo_b64 = base64.b64encode(buffer).decode('utf-8')
-
-                    # x1, y1, x2, y2 = bbox
-                    saved_frame_data.append({
-                        "frame_idx": frame_idx,
-                        "logo_id": assigned_id,
-                        "logo_base64": logo_b64
-                    })
+                    
+                    saved_frame_data.append(save_frame_func(frame, frame_idx, logo_id_counter, input_logo))
 
 
         out.write(frame)  # write processed frame to output
@@ -261,15 +251,7 @@ def process_video_specific(input_video_path, reference_image_path,bounding_box_t
     cap.release()
     out.release()
 
-    # Lower CRF = Higher Quality and Less Compression
-    # Higher CRF = Lower Quality and More Compression
-    subprocess.run([
-        imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-i", output_video_path,
-        "-vcodec", "libx264", "-crf", "23", "-preset", "ultrafast",
-        temp_compressed_path
-    ])
-
-    os.replace(output_video_path, temp_compressed_path)
+    run_ffmpeg_subprocess(output_video_path, temp_compressed_path)
 
     return jsonify({
         # "video": video_path,

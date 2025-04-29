@@ -209,3 +209,24 @@ def convert_file_to_image(file):
     file_bytes = np.frombuffer(file.read(), np.uint8)
     img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
     return img
+
+def save_frame_func(frame, frame_idx, logo_id_counter, input_logo, save_dir="new_logo_frames"):
+    ''' Saves the frame with the logo bounding box and returns the logo ID and base64 encoded logo '''
+    # Save the frame with the logo bounding box
+    os.makedirs(save_dir, exist_ok=True)
+    # Create a unique filename for the frame
+    # Save the frame with the logo bounding box
+    save_path = os.path.join(save_dir, f"frame_{frame_idx}_logo_{logo_id_counter}.jpg")
+    cv2.imwrite(save_path, frame)
+
+    # Convert the logo to base64 to be sent to the frontend
+    _, buffer = cv2.imencode('.jpg', input_logo)
+    logo_b64 = base64.b64encode(buffer).decode('utf-8')
+
+    # Return the frame index, logo ID, and base64 encoded logo
+    # This will be appended to the saved_frame_data list, and then sent to frontend
+    return {
+        "frame_idx": frame_idx,
+        "logo_id": logo_id_counter,
+        "logo_base64": logo_b64
+    }
