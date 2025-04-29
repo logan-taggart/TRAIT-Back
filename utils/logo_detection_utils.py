@@ -99,6 +99,16 @@ def add_logo_to_faiss(faiss_index, embedding, logo_id_map, logo_id_counter):
     # Increment the logo ID counter for the next unique logo
     return logo_id_counter + 1
 
+def increase_logo_appearance_count(logo_appearance_counts, logo_id_map, I, id):
+    """ Increases the count of appearances for a logo in the logo_appearance_counts dictionary"""
+    # Get the ID of the logo from the FAISS index
+    id = logo_id_map[I[0][0]]
+    # Increase the count of appearances for this logo
+    logo_appearance_counts[id] += 1
+    # Dont save the frame. We've already seen this logo
+    save_frame = False
+    return id, save_frame
+
 def update_logo_in_faiss(faiss_index, embedding, logo_id_map, logo_appearance_counts, threshold=0.5):
     '''Search FAISS index for a logo and update counts if a match is found or a new entry is added'''
 
@@ -107,11 +117,10 @@ def update_logo_in_faiss(faiss_index, embedding, logo_id_map, logo_appearance_co
     D, I = faiss_index.search(np.array(embedding), k=1)
     # Check if the distance is less than the threshold (LOWER IS BETTER)
     if D[0][0] < threshold:
-        # Logo already exists
-        assigned_id = logo_id_map[I[0][0]]
-        # Increment the count of appearances for this logo
-        logo_appearance_counts[assigned_id] += 1
-        save_frame = False
+
+        # Logo already exists, increase the count of appearances
+        assigned_id, save_frame = increase_logo_appearance_count(logo_appearance_counts, logo_id_map, I, assigned_id)
+        
     else:
         # New logo seen, add it to FAISS
         assigned_id = add_logo_to_faiss(faiss_index, embedding, logo_id_map, len(logo_id_map))

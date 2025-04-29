@@ -27,7 +27,6 @@ def setup_faiss(embedding_dim=768):
 
     # Initialize FAISS index for L2 distance
     faiss_index = faiss.IndexFlatL2(embedding_dim)
-    faiss_index = faiss.IndexFlatL2(embedding_dim)
     logo_id_counter = 0 # How many unique logos we've seen
     logo_id_map = {}  # maps FAISS index to logo ID
     logo_appearance_counts = defaultdict(int) # How many times a unique logo has appeared
@@ -131,7 +130,6 @@ def process_video(input_video_path, bounding_box_threshold, frame_skip=5):
     run_ffmpeg_subprocess(output_video_path, temp_compressed_path)
 
     return jsonify({
-        # "video": video_path,
         "saved_frames": saved_frame_data,
         "logo_appearance_count": logo_appearance_counts
     })
@@ -163,9 +161,13 @@ def process_video_specific(input_video_path, reference_image_path,bounding_box_t
     # Value is a list because the reference logo can have multiple logos
     reference_embeddings = {type(model).__name__: [] for model in embedding_models}
     for ref_logo in reference_logos:
-        ref_logo = Image.fromarray(ref_logo)
+        # convert the logo to PIL image. Do this for the ResNet model
+        PIL_ref_logo = Image.fromarray(ref_logo)
         for model in embedding_models:
-            reference_embeddings[type(model).__name__].append(model.extract_embedding(ref_logo))
+            # Get the embedding for each model
+            # Store it as a dict. Key: Model_name, value: [Vector]
+            # Value is a list because the reference logo can have multiple logos
+            reference_embeddings[type(model).__name__].append(model.extract_embedding(PIL_ref_logo))
 
     while cap.isOpened():
         ret, frame = cap.read()
@@ -181,66 +183,50 @@ def process_video_specific(input_video_path, reference_image_path,bounding_box_t
             # draw a bounding box around each detected logo
             for input_logo, bbox in zip(input_logos, input_bboxes):
                 # Get the three embeddings of logo found
-                input_logo = Image.fromarray(input_logo)
-                input_embeddings = {type(model).__name__: model.extract_embedding(input_logo) for model in embedding_models}
+                # convert the logo to PIL image. Do this for the ResNet model
+                PIL_input_logo = Image.fromarray(input_logo)
+                # input_logo = Image.fromarray(input_logo)
+                input_embeddings = {type(model).__name__: model.extract_embedding(PIL_input_logo) for model in embedding_models}
                 
                 embedding_faiss_cmp = input_embeddings['BEiTEmbedding'].copy() # copy the beit embedding from input_embeddings
                 faiss.normalize_L2(embedding_faiss_cmp) # normalize the embedding. Works really well with FAISS
 
-                if faiss_index.ntotal == 0: # First entry into FAISS
+                # Get the L2 distance and index 
+                D, I = faiss_index.search(np.array(embedding_faiss_cmp), k=1)
+                print("Distance:", D[0][0])
+                # Lower the distance, the better
+                
+                if D[0][0] < 0.5:  # If a distance is above a 0.5, then the logo hasnt been seen
+                    # Nothing needs to be done here for specific search
+                    # If an index already exists within FAISS, then the logo has already been checked and verified by the vote
+                    print("INDEX ALREADY EXISTS")
+                    # increase the amount of times weve seen this logo
+                    assigned_id, save_frame = increase_logo_appearance_count(logo_appearance_counts, logo_id_map, I, assigned_id) 
+
+                    # draw the bounding box in the frame
+                    draw_bb_box(bbox, frame, assigned_id)
+                else:
                     
                     if verify_vote(input_embeddings, reference_embeddings, votes_needed, embedding_models):# Need to check if logo passes vote
-                        print("VOTE PASSED! ADDING NEW INDEX") # Create a new index into FAISS
-                        faiss_index.add(embedding_faiss_cmp) # Get embedding
-                        logo_id_map[0] = logo_id_counter # First unique logo
-                        logo_appearance_counts[logo_id_counter] += 1 # increment the unique logo
-                        logo_id_counter += 1 # Go to next unique ID
-                        assigned_id = logo_id_counter - 1 # current unique ID
+                        # Votes passed! Adding new index
+                        print("VOTE PASSED! ADDING NEW INDEX")
+                        
+                        # Set the number of times we seen this new logo to 1 (first appearance)
+                        logo_appearance_counts[logo_id_counter] = 1 
+                        # current assigned ID is the logo_id_counter
+                        assigned_id = logo_id_counter 
+                        # Add the new logo to FAISS and increment the ID counter
+                        logo_id_counter = add_logo_to_faiss(faiss_index, embedding_faiss_cmp, logo_id_map, logo_id_counter)
+                        # We want to save this frame because it is the first time we've seen this logo
                         save_frame = True
 
-                        # draw the bounding box in the frame
+                        # Draw the bounding box in the frame
                         draw_bb_box(bbox, frame, assigned_id)
                     else:
                         save_frame = False
                         print("VOTE FAILED >:(")
-                        
-                else: # FAISS IS NOT EMPTY
-                    
-                    # Get the L2 distance and index 
-                    D, I = faiss_index.search(np.array(embedding_faiss_cmp), k=1)
-                    print("Distance:", D[0][0])
-                    # Lower the distance, the better
-                    
-                    if D[0][0] < 0.5:  # If a distance is above a 0.5, then the logo hasnt been seen
-                        # Nothing needs to be done here for specific search
-                        # If an index already exists within FAISS, then the logo has already been checked and verified by the vote
-                        print("INDEX ALREADY EXISTS")
-                        assigned_id = logo_id_map[I[0][0]]
-                        logo_appearance_counts[assigned_id] += 1 # increase the amount of times weve seen this logo
-                        save_frame = False
-
-                        # draw the vounind box in the frame
-                        draw_bb_box(bbox, frame, assigned_id)
-                    else:
-                        
-                        if verify_vote(input_embeddings, reference_embeddings, votes_needed, embedding_models):# Need to check if logo passes vote
-                            # Votes passed! Adding new index
-                            print("VOTE PASSED! ADDING NEW INDEX") # Create a new index into FAISS
-                            faiss_index.add(embedding_faiss_cmp) # Add a new index (embedding)
-                            logo_id_map[faiss_index.ntotal - 1] = logo_id_counter # Assign the new index to a logo_id
-                            logo_appearance_counts[logo_id_counter] += 1 # increment how many times weve seen this unique ID
-                            assigned_id = logo_id_counter # current assigned ID
-                            logo_id_counter += 1 # Go to the next unique ID
-                            save_frame = True
-
-                            # Draw the bounding box in the frame
-                            draw_bb_box(bbox, frame, assigned_id)
-                        else:
-                            save_frame = False
-                            print("VOTE FAILED >:(")
                     
                 if save_frame:
-                    
                     saved_frame_data.append(save_frame_func(frame, frame_idx, logo_id_counter, input_logo))
 
 
@@ -254,7 +240,6 @@ def process_video_specific(input_video_path, reference_image_path,bounding_box_t
     run_ffmpeg_subprocess(output_video_path, temp_compressed_path)
 
     return jsonify({
-        # "video": video_path,
         "saved_frames": saved_frame_data,
         "logo_appearance_count": logo_appearance_counts
     })
