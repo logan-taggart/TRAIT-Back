@@ -74,6 +74,7 @@ def run_ffmpeg_subprocess(input_video_path, output_video_path):
 
 
 # FOR GENERAL VIDEO SEARCH
+# Change frame_skip possobly to speed up?
 def process_video(input_video_path, bounding_box_threshold, bb_color, frame_skip=5):
     
     # Initialize FAISS, the counter for what logo ID we are on, and the logo appearance counts
@@ -92,39 +93,49 @@ def process_video(input_video_path, bounding_box_threshold, bb_color, frame_skip
     bb_color = hex_to_bgr(bb_color)
 
     frame_idx = 0
-    # save_frame is a flag to determine if we should save the frame and info with the logo bounding box
-    save_frame = False
     saved_frame_data = []
+    dynamic_frame_skip = frame_skip  # start with 5
+    logo_present = False
 
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break  # stop if video ends
 
-        if frame_idx % frame_skip == 0:  # process every 5th frame
+        if frame_idx % dynamic_frame_skip == 0:
             print(f"Processing frame {frame_idx}")
-            
-            # extract detected logos from the current frame
-            input_logos, input_bboxes = extract_logo_regions(frame,bounding_box_threshold,save_crop=False)
+        
+            input_logos, input_bboxes = extract_logo_regions(frame, bounding_box_threshold, save_crop=False)
 
-            # draw a bounding box around each detected logo
-            for input_logo, bbox in zip(input_logos, input_bboxes):
-                # Get the logo region in rgb format
-                embedding = embedding_models[0].extract_embedding(input_logo)
-                faiss.normalize_L2(embedding) # normalize the embedding. Works really well with FAISS
+            # Check if any logos are found in this frame
+            if input_logos:
+                if not logo_present:
+                    print("Logo found. Switching to processing every frame.")
+                logo_present = True
+                dynamic_frame_skip = 1  # now process every frame
 
-                # Process the embedding with FAISS
-                # Checks if the logo already exists in the FAISS index
-                assigned_id, save_frame = update_logo_in_faiss(faiss_index, embedding, logo_id_map, logo_appearance_counts)
-                    
-                draw_bb_box(bbox, frame, assigned_id, bb_color=bb_color)
+                for input_logo, bbox in zip(input_logos, input_bboxes):
+                    embedding = embedding_models[0].extract_embedding(input_logo)
+                    faiss.normalize_L2(embedding)
 
-                if save_frame:
-                    # Save the frame with the logo bounding box and return the logo ID and base64 encoded logo
-                    saved_frame_data.append(save_frame_func(frame, frame_idx, logo_id_counter, input_logo))
+                    assigned_id, save_frame = update_logo_in_faiss(
+                        faiss_index, embedding, logo_id_map, logo_appearance_counts
+                    )
+
+                    draw_bb_box(bbox, frame, assigned_id, bb_color=bb_color)
+
+                    if save_frame:
+                        saved_frame_data.append(
+                            save_frame_func(frame, frame_idx, logo_id_counter, input_logo)
+                        )
+            else:
+                if logo_present:
+                    print(f"No logos found. Reverting to every other {frame_skip} frames.")
+                logo_present = False
+                dynamic_frame_skip = frame_skip  # back to 5
 
         out.write(frame)
-        frame_idx += 1 # next frame
+        frame_idx += 1
 
     cap.release()
     out.release()
