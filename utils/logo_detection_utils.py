@@ -119,7 +119,7 @@ def update_logo_in_faiss(faiss_index, embedding, logo_id_map, logo_appearance_co
     if D[0][0] < threshold:
 
         # Logo already exists, increase the count of appearances
-        assigned_id, save_frame = increase_logo_appearance_count(logo_appearance_counts, logo_id_map, I, assigned_id)
+        assigned_id, save_frame = increase_logo_appearance_count(logo_appearance_counts, logo_id_map, I, I[0][0])
         
     else:
         # New logo seen, add it to FAISS
