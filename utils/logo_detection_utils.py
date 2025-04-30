@@ -74,7 +74,7 @@ def img_to_base64(img):
     img_bytes = buffer.tobytes()
     return base64.b64encode(img_bytes).decode('utf-8')
 
-def draw_bb_box(bbox, frame, ID):
+def draw_bb_box(bbox, frame, ID, bb_color=(255, 255, 255)):
     '''
     Draws the bounding box around the logo in the frame
     
@@ -83,8 +83,8 @@ def draw_bb_box(bbox, frame, ID):
     ID is the identification of the detected logo
     '''
     x1, y1, x2, y2 = bbox
-    cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 255, 255), 5)
-    cv2.putText(frame, f"ID: {ID}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (77, 33, 191), 2)
+    cv2.rectangle(frame, (x1, y1), (x2, y2), bb_color, 5)
+    cv2.putText(frame, f"ID: {ID}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, bb_color, 2)
 
 
 def add_logo_to_faiss(faiss_index, embedding, logo_id_map, logo_id_counter):

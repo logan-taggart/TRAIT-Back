@@ -74,7 +74,7 @@ def run_ffmpeg_subprocess(input_video_path, output_video_path):
 
 
 # FOR GENERAL VIDEO SEARCH
-def process_video(input_video_path, bounding_box_threshold, frame_skip=5):
+def process_video(input_video_path, bounding_box_threshold, bb_color, frame_skip=5):
     
     # Initialize FAISS, the counter for what logo ID we are on, and the logo appearance counts
     # FAISS index is used to store the logo embeddings and their corresponding IDs
@@ -88,6 +88,8 @@ def process_video(input_video_path, bounding_box_threshold, frame_skip=5):
     # Setup the video capture and writer to process the video
     cap, out = setup_opencv_video(input_video_path, output_video_path)
     
+    # Convert the color from hex to BGR for OpenCV
+    bb_color = hex_to_bgr(bb_color)
 
     frame_idx = 0
     # save_frame is a flag to determine if we should save the frame and info with the logo bounding box
@@ -115,7 +117,7 @@ def process_video(input_video_path, bounding_box_threshold, frame_skip=5):
                 # Checks if the logo already exists in the FAISS index
                 assigned_id, save_frame = update_logo_in_faiss(faiss_index, embedding, logo_id_map, logo_appearance_counts)
                     
-                draw_bb_box(bbox, frame, assigned_id)
+                draw_bb_box(bbox, frame, assigned_id, bb_color=bb_color)
 
                 if save_frame:
                     # Save the frame with the logo bounding box and return the logo ID and base64 encoded logo
@@ -136,7 +138,7 @@ def process_video(input_video_path, bounding_box_threshold, frame_skip=5):
 
 
 # FOR SPECIFIC VIDEO SEARCH
-def process_video_specific(input_video_path, reference_image_path,bounding_box_threshold, votes_needed=2, frame_skip=5):
+def process_video_specific(input_video_path, reference_image_path,bounding_box_threshold, bb_color, votes_needed=2, frame_skip=5):
     
     # Initialize FAISS, the counter for what logo ID we are on, and the logo appearance counts
     # FAISS index is used to store the logo embeddings and their corresponding IDs
@@ -156,6 +158,10 @@ def process_video_specific(input_video_path, reference_image_path,bounding_box_t
 
     reference_logos, _ = extract_logo_regions(reference_image_path, bounding_box_threshold, save_crop=False)
 
+    # Convert the color from hex to BGR for OpenCV
+    print("BB Color:", bb_color)
+    bb_color = hex_to_bgr(bb_color) 
+    
     # Get the reference logo embeddings
     # Store it as a dict. Key: Model_name, value: [Vector]
     # Value is a list because the reference logo can have multiple logos
@@ -204,7 +210,7 @@ def process_video_specific(input_video_path, reference_image_path,bounding_box_t
                     assigned_id, save_frame = increase_logo_appearance_count(logo_appearance_counts, logo_id_map, I, assigned_id) 
 
                     # draw the bounding box in the frame
-                    draw_bb_box(bbox, frame, assigned_id)
+                    draw_bb_box(bbox, frame, assigned_id, bb_color=bb_color)
                 else:
                     
                     if verify_vote(input_embeddings, reference_embeddings, votes_needed, embedding_models):# Need to check if logo passes vote
@@ -221,7 +227,7 @@ def process_video_specific(input_video_path, reference_image_path,bounding_box_t
                         save_frame = True
 
                         # Draw the bounding box in the frame
-                        draw_bb_box(bbox, frame, assigned_id)
+                        draw_bb_box(bbox, frame, assigned_id, bb_color=bb_color)
                     else:
                         save_frame = False
                         print("VOTE FAILED >:(")
