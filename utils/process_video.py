@@ -166,6 +166,8 @@ def process_video_specific(input_video_path, reference_image_path,bounding_box_t
     frame_idx = 0
     save_frame = False
     saved_frame_data = []
+    dynamic_frame_skip = frame_skip  # start with 5
+    logo_present = False
 
     reference_logos, _ = extract_logo_regions(reference_image_path, bounding_box_threshold, save_crop=False)
 
@@ -191,11 +193,12 @@ def process_video_specific(input_video_path, reference_image_path,bounding_box_t
         if not ret:
             break  # stop if video ends
 
-        if frame_idx % frame_skip == 0:  # process every 5th frame
+        if frame_idx % dynamic_frame_skip == 0:  # process every 5th frame
             print(f"Processing frame {frame_idx}")
 
             # extract detected logos from the current frame
             input_logos, input_bboxes = extract_logo_regions(frame,bounding_box_threshold, save_crop=False)
+            logo_matched_this_frame = False
 
             # draw a bounding box around each detected logo
             for input_logo, bbox in zip(input_logos, input_bboxes):
@@ -222,6 +225,7 @@ def process_video_specific(input_video_path, reference_image_path,bounding_box_t
 
                     # draw the bounding box in the frame
                     draw_bb_box(bbox, frame, assigned_id, bb_color=bb_color)
+                    logo_matched_this_frame = True
                 else:
                     
                     if verify_vote(input_embeddings, reference_embeddings, votes_needed, embedding_models):# Need to check if logo passes vote
@@ -239,6 +243,7 @@ def process_video_specific(input_video_path, reference_image_path,bounding_box_t
 
                         # Draw the bounding box in the frame
                         draw_bb_box(bbox, frame, assigned_id, bb_color=bb_color)
+                        logo_matched_this_frame = True
                     else:
                         save_frame = False
                         print("VOTE FAILED >:(")
@@ -246,7 +251,17 @@ def process_video_specific(input_video_path, reference_image_path,bounding_box_t
                 if save_frame:
                     saved_frame_data.append(save_frame_func(frame, frame_idx, logo_id_counter, input_logo))
 
-
+            if logo_matched_this_frame:
+                if not logo_present:
+                    print("Matching logo found. Switching to every frame.")
+                logo_present = True
+                dynamic_frame_skip = 1
+            else:
+                if logo_present:
+                    print("No matching logos found. Switching back to every 5th frame.")
+                logo_present = False
+                dynamic_frame_skip = frame_skip
+                
         out.write(frame)  # write processed frame to output
 
         frame_idx += 1 # next frame
