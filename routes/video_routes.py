@@ -6,6 +6,8 @@ from flask_cors import CORS
 
 from utils.process_video import *
 
+from utils.video_progress import video_progress
+
 video_blueprint = Blueprint("video", __name__, url_prefix="/video")
 CORS(video_blueprint)
 
@@ -40,6 +42,12 @@ def fetch_processed_video():
 
     return send_file(video_path, mimetype='video/mp4')
 
+@video_blueprint.route("/fetch-progress", methods=["GET"])
+def fetch_progress():
+    # Return the current progress of the video processing
+    # print("*****************************")
+    # print(video_progress)
+    return video_progress
 
 @video_blueprint.route("/detect-specific", methods=["POST"])
 def detect_specific():

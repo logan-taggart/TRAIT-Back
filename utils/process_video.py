@@ -16,7 +16,8 @@ resnet = ResNetEmbedding()
 embedding_models = [beit, clip, resnet]
 
 from flask import jsonify
-import base64
+
+from utils.video_progress import video_progress
 
 from utils.logo_detection_utils import *
 
@@ -92,6 +93,10 @@ def process_video(input_video_path, bounding_box_threshold, bb_color, frame_skip
     # Convert the color from hex to BGR for OpenCV
     bb_color = hex_to_bgr(bb_color)
 
+
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    video_progress['total_frames'] = total_frames
+
     frame_idx = 0
     saved_frame_data = []
     dynamic_frame_skip = frame_skip  # start with 5
@@ -99,6 +104,8 @@ def process_video(input_video_path, bounding_box_threshold, bb_color, frame_skip
 
     while cap.isOpened():
         ret, frame = cap.read()
+
+        video_progress['progress'] = float((frame_idx / total_frames)) * 100
         if not ret:
             break  # stop if video ends
 
@@ -172,8 +179,10 @@ def process_video_specific(input_video_path, reference_image_path,bounding_box_t
     reference_logos, _ = extract_logo_regions(reference_image_path, bounding_box_threshold, save_crop=False)
 
     # Convert the color from hex to BGR for OpenCV
-    print("BB Color:", bb_color)
     bb_color = hex_to_bgr(bb_color) 
+
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    video_progress['total_frames'] = total_frames
     
     # Get the reference logo embeddings
     # Store it as a dict. Key: Model_name, value: [Vector]
@@ -190,6 +199,9 @@ def process_video_specific(input_video_path, reference_image_path,bounding_box_t
 
     while cap.isOpened():
         ret, frame = cap.read()
+
+        video_progress['progress'] = float((frame_idx / total_frames)) * 100
+
         if not ret:
             break  # stop if video ends
 
