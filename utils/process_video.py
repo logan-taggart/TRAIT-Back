@@ -105,7 +105,7 @@ def process_video(input_video_path, bounding_box_threshold, bb_color, frame_skip
     while cap.isOpened():
         ret, frame = cap.read()
 
-        video_progress['progress'] = float((frame_idx / total_frames)) * 100
+        video_progress['progress_percentage'] = float((frame_idx / total_frames)) * 100
         if not ret:
             break  # stop if video ends
 
@@ -200,7 +200,7 @@ def process_video_specific(input_video_path, reference_image_path,bounding_box_t
     while cap.isOpened():
         ret, frame = cap.read()
 
-        video_progress['progress'] = float((frame_idx / total_frames)) * 100
+        video_progress['progress_percentage'] = float((frame_idx / total_frames)) * 100
 
         if not ret:
             break  # stop if video ends
