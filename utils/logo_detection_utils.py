@@ -34,7 +34,8 @@ def extract_logo_regions(image, bounding_box_threshold, save_crop=False, output_
         print("Error: Could not load image.")
         return [], [], None
     print("Boundary box threshold:", bounding_box_threshold)
-    results = model(img,conf=bounding_box_threshold)
+    results = model(img,conf=bounding_box_threshold,iou=0.5)
+    
 
     # A list of cropped logos
     logo_regions = []
