@@ -1,16 +1,4 @@
-import numpy as np
-import cv2
-from PIL import Image
-
-from flask import jsonify
-
-
 from utils.embed import BEiTEmbedding, CLIPEmbedding, ResNetEmbedding
-# Trained YOLO model
-from models.model_load import model
-
-from utils.logo_detection_utils import *
-from utils.cancel_process import cancel_state_image
 
 beit = BEiTEmbedding()
 clip = CLIPEmbedding()
@@ -19,7 +7,12 @@ resnet = ResNetEmbedding()
 embedding_models = [beit, clip, resnet]
 
 def compare_logo_embeddings(input_file, reference_file, score_threshold, bb_color,bounding_box_threshold):
-        
+    from flask import jsonify
+    from PIL import Image
+
+    from utils.cancel_process import cancel_state_image
+    from utils.logo_detection_utils import convert_file_to_image, check_if_cancelled, hex_to_bgr, extract_logo_regions, verify_vote, extract_and_record_logo, img_to_base64
+
     # Convert the input file to an image we can use with OpenCV and YOLO model
     img = convert_file_to_image(input_file)
     # Convert the reference file to an image we can use with OpenCV and YOLO model
@@ -79,6 +72,13 @@ def compare_logo_embeddings(input_file, reference_file, score_threshold, bb_colo
 
 def identify_all_logos(file, bb_color, bounding_box_threshold):
     '''Returns the image with bounding boxes around all logos found'''
+    import cv2
+    from flask import jsonify
+    import numpy as np
+
+    from utils.cancel_process import cancel_state_image
+    from utils.logo_detection_utils import check_if_cancelled, extract_logo_regions, hex_to_bgr, extract_and_record_logo, img_to_base64
+
     file_bytes = np.frombuffer(file.read(), np.uint8)
     img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
 
@@ -111,4 +111,3 @@ def identify_all_logos(file, bb_color, bounding_box_threshold):
         "bounding_boxes": bounding_boxes_info,
         "image": img_base64
     })
-

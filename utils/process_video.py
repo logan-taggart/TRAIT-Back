@@ -1,28 +1,17 @@
-from PIL import Image
-import cv2
-import faiss
-from torchvision.models.feature_extraction import create_feature_extractor
-import os
-from collections import defaultdict
-import numpy as np
-import subprocess
-import imageio_ffmpeg
-
 from utils.embed import BEiTEmbedding, CLIPEmbedding, ResNetEmbedding
+
 beit = BEiTEmbedding()
 clip = CLIPEmbedding()
 resnet = ResNetEmbedding()
 
 embedding_models = [beit, clip, resnet]
 
-from flask import jsonify
-
-from utils.video_progress import video_progress
-from utils.cancel_process import cancel_state_video
-
 from utils.logo_detection_utils import *
 
 def setup_faiss(embedding_dim=768):
+    from collections import defaultdict
+    import faiss
+
     # resnet size = 2048
     # clip size = 512
     # beit size = 768
@@ -35,6 +24,7 @@ def setup_faiss(embedding_dim=768):
     return faiss_index, logo_id_counter, logo_id_map, logo_appearance_counts
 
 def setup_directories():
+    import os
     # Remove any existing processed video files
     if os.path.exists("./processed_videos/processed_video.mp4"):
         os.remove("./processed_videos/processed_video.mp4")
@@ -50,6 +40,8 @@ def setup_directories():
     return output_video_path, temp_compressed_path
 
 def setup_opencv_video(input_video_path, output_video_path):
+    import cv2
+
     cap = cv2.VideoCapture(input_video_path)
     # This will give an error, but it still works. GO WITH IT
     # Actually doesnt support avc1, so the video size is like 900mb.
@@ -63,6 +55,10 @@ def setup_opencv_video(input_video_path, output_video_path):
     return cap, out
 
 def run_ffmpeg_subprocess(input_video_path, output_video_path):
+    import imageio_ffmpeg
+    import os
+    import subprocess
+
     # Lower CRF = Higher Quality and Less Compression
     # Higher CRF = Lower Quality and More Compression
     subprocess.run([
@@ -78,7 +74,14 @@ def run_ffmpeg_subprocess(input_video_path, output_video_path):
 # FOR GENERAL VIDEO SEARCH
 # Change frame_skip possobly to speed up?
 def process_video(input_video_path, bounding_box_threshold, bb_color, frame_skip=5):
-    
+    import cv2
+    import faiss
+    from flask import jsonify
+
+    from utils.cancel_process import cancel_state_video
+    from utils.logo_detection_utils import check_if_cancelled, draw_bb_box, extract_logo_regions, hex_to_bgr, save_frame_func, update_logo_in_faiss
+    from utils.video_progress import video_progress
+
     # Initialize FAISS, the counter for what logo ID we are on, and the logo appearance counts
     # FAISS index is used to store the logo embeddings and their corresponding IDs
     # logo_id_counter is used to assign unique IDs to logos
@@ -170,7 +173,16 @@ def process_video(input_video_path, bounding_box_threshold, bb_color, frame_skip
 
 # FOR SPECIFIC VIDEO SEARCH
 def process_video_specific(input_video_path, reference_image_path,bounding_box_threshold, bb_color, votes_needed=2, frame_skip=5):
-    
+    import cv2
+    import faiss
+    from flask import jsonify
+    import numpy as np
+    from PIL import Image
+
+    from utils.cancel_process import cancel_state_video
+    from utils.logo_detection_utils import add_logo_to_faiss, check_if_cancelled, draw_bb_box, extract_logo_regions, hex_to_bgr, increase_logo_appearance_count, save_frame_func, verify_vote
+    from utils.video_progress import video_progress
+
     # Initialize FAISS, the counter for what logo ID we are on, and the logo appearance counts
     # FAISS index is used to store the logo embeddings and their corresponding IDs
     # logo_id_counter is used to assign unique IDs to logos

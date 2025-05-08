@@ -1,14 +1,3 @@
-import base64
-import os
-import cv2
-import numpy as np
-from scipy.spatial.distance import cosine, euclidean
-from models.model_load import model
-
-from utils.cancel_process import cancel_state_video
-from utils.cancel_process import cancel_state_image
-
-
 def hex_to_bgr(hex_color):
     '''Converts a hex color to bgr (blue, green, red)
     We do it this way because thats how OpenCV reads colors'''
@@ -18,16 +7,23 @@ def hex_to_bgr(hex_color):
 
 
 def compute_cosine_similarity(embedding1, embedding2):
+    from scipy.spatial.distance import cosine
     return 1 - cosine(embedding1.ravel(), embedding2.ravel())
 
 def compute_euclidean_distances(embedding1, embedding2):
+    from scipy.spatial.distance import euclidean
     return euclidean(embedding1.ravel(), embedding2.ravel())
 
 
 def extract_logo_regions(image, bounding_box_threshold, save_crop=False, output_dir="cropped_logos", return_img=False):
     """Runs YOLO on an image and extracts detected logo regions."""
+
+    import cv2
+    import os
+
+    from models.model_load import model
+
     # Check if input is a file path or an image array
-    
     if isinstance(image, str):  # File path
         img = cv2.imread(image)
     else:  # Assume it's already an ndarray
@@ -37,7 +33,7 @@ def extract_logo_regions(image, bounding_box_threshold, save_crop=False, output_
         print("Error: Could not load image.")
         return [], [], None
     print("Boundary box threshold:", bounding_box_threshold)
-    results = model(img,conf=bounding_box_threshold,iou=0.5)
+    results = model(img, conf=bounding_box_threshold, iou=0.5)
     
 
     # A list of cropped logos
@@ -74,6 +70,9 @@ def img_to_base64(img):
     '''Converts an image (ndarray) to a base64-encoded string
     This is so we can send the image back to the frontend using a json object'''
 
+    import base64
+    import cv2
+
     _, buffer = cv2.imencode('.jpg', img)
     img_bytes = buffer.tobytes()
     return base64.b64encode(img_bytes).decode('utf-8')
@@ -86,6 +85,9 @@ def draw_bb_box(bbox, frame, ID, bb_color=(255, 255, 255)):
     frame is the image we want to draw on
     ID is the identification of the detected logo
     '''
+
+    import cv2
+
     x1, y1, x2, y2 = bbox
     cv2.rectangle(frame, (x1, y1), (x2, y2), bb_color, 5)
     cv2.putText(frame, f"ID: {ID}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, bb_color, 2)
@@ -115,6 +117,8 @@ def increase_logo_appearance_count(logo_appearance_counts, logo_id_map, I, id):
 
 def update_logo_in_faiss(faiss_index, embedding, logo_id_map, logo_appearance_counts, threshold=0.5):
     '''Search FAISS index for a logo and update counts if a match is found or a new entry is added'''
+
+    import numpy as np
 
     save_frame = False
     # Get the distance and index of the nearest neighbor
@@ -182,6 +186,8 @@ def extract_and_record_logo(image, bbox, bb_color):
     - bb_color: the color of the bounding box in brg format
     '''
 
+    import cv2
+
     # unpack the bounding box coordinates
     x1, y1, x2, y2 = bbox
 
@@ -219,12 +225,20 @@ def extract_and_record_logo(image, bbox, bb_color):
 def convert_file_to_image(file):
     '''Converts a file to an image so OpenCV and YOLO model can use it'''
 
+    import cv2
+    import numpy as np
+
     file_bytes = np.frombuffer(file.read(), np.uint8)
     img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
     return img
 
 def save_frame_func(frame, frame_idx, logo_id_counter, input_logo, save_dir="new_logo_frames"):
     ''' Saves the frame with the logo bounding box and returns the logo ID and base64 encoded logo '''
+
+    import base64
+    import cv2
+    import os
+
     # Save the frame with the logo bounding box
     os.makedirs(save_dir, exist_ok=True)
     # Create a unique filename for the frame
@@ -247,6 +261,9 @@ def save_frame_func(frame, frame_idx, logo_id_counter, input_logo, save_dir="new
 
 def check_if_cancelled(media_type):
     '''Check if the process has been cancelled'''
+
+    from utils.cancel_process import cancel_state_image
+    from utils.cancel_process import cancel_state_video
 
     if media_type == "image":
         # Check if the cancel_process flag is set to True
