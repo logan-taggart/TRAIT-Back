@@ -3,6 +3,8 @@ from flask_cors import CORS
 
 from utils.process import *
 
+from utils.cancel_process import cancel_state_image
+
 image_blueprint = Blueprint("image", __name__, url_prefix="/image")
 CORS(image_blueprint)
 
