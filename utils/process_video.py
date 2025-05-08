@@ -114,10 +114,10 @@ def process_video(input_video_path, bounding_box_threshold, bb_color, frame_skip
 
         # Check if the process has been cancelled
         if check_if_cancelled():
-            print("PROCESS SHOULD BE CANCELED")
-            return jsonify({"error": "Process cancelled"}), 400
+            return jsonify({"message": "Processing cancelled"}), 200
         
-        print(f"CANCLED: {cancel_state['canceled']}")
+        # print if the process has been cancelled. Should be false
+        print(f"CANCELLED: {cancel_state['canceled']}")
 
         if not ret:
             break  # stop if video ends
@@ -222,9 +222,10 @@ def process_video_specific(input_video_path, reference_image_path,bounding_box_t
 
         # Check if the process has been cancelled
         if check_if_cancelled():
-            return jsonify({"error": "Process cancelled"}), 400
+            return jsonify({"message": "Processing cancelled"}), 200
         
-        print(f"CANCLED: {cancel_state['canceled']}")
+        # print if the process has been cancelled. Should be false
+        print(f"CANCELLED: {cancel_state['canceled']}")
 
         if not ret:
             break  # stop if video ends

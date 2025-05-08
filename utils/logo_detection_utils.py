@@ -247,7 +247,7 @@ def save_frame_func(frame, frame_idx, logo_id_counter, input_logo, save_dir="new
 def check_if_cancelled():
     '''Check if the process has been cancelled'''
     if cancel_state['canceled'] == True:
-        print("Process cancelled")
+        print("PROCESS CANCELLED")
         # Reset the cancel_process flag for next use
         cancel_state['canceled'] = False
         return True
