@@ -5,6 +5,8 @@ import numpy as np
 from scipy.spatial.distance import cosine, euclidean
 from models.model_load import model
 
+from utils.cancel_process import cancel_state
+
 
 def hex_to_bgr(hex_color):
     '''Converts a hex color to bgr (blue, green, red)
@@ -240,3 +242,15 @@ def save_frame_func(frame, frame_idx, logo_id_counter, input_logo, save_dir="new
         "logo_id": logo_id_counter,
         "logo_base64": logo_b64
     }
+
+
+def check_if_cancelled():
+    '''Check if the process has been cancelled'''
+    if cancel_state['canceled'] == True:
+        print("Process cancelled")
+        # Reset the cancel_process flag for next use
+        cancel_state['canceled'] = False
+        return True
+    
+    # Process was not cancelled
+    return False
