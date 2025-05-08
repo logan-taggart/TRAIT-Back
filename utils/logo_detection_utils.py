@@ -5,7 +5,8 @@ import numpy as np
 from scipy.spatial.distance import cosine, euclidean
 from models.model_load import model
 
-from utils.cancel_process import cancel_state
+from utils.cancel_process import cancel_state_video
+from utils.cancel_process import cancel_state_image
 
 
 def hex_to_bgr(hex_color):
@@ -244,13 +245,23 @@ def save_frame_func(frame, frame_idx, logo_id_counter, input_logo, save_dir="new
     }
 
 
-def check_if_cancelled():
+def check_if_cancelled(media_type):
     '''Check if the process has been cancelled'''
-    if cancel_state['canceled'] == True:
-        print("PROCESS CANCELLED")
-        # Reset the cancel_process flag for next use
-        cancel_state['canceled'] = False
-        return True
+
+    if media_type == "image":
+        # Check if the cancel_process flag is set to True
+        if cancel_state_image['canceled'] == True:
+            print("PROCESS CANCELLED")
+            # Reset the cancel_process flag for next use
+            cancel_state_image['canceled'] = False
+            return True
+    
+    elif media_type == "video":
+        if cancel_state_video['canceled'] == True:
+            print("PROCESS CANCELLED")
+            # Reset the cancel_process flag for next use
+            cancel_state_video['canceled'] = False
+            return True
     
     # Process was not cancelled
     return False

@@ -7,7 +7,7 @@ from flask_cors import CORS
 from utils.process_video import *
 
 from utils.video_progress import video_progress
-from utils.cancel_process import cancel_state
+from utils.cancel_process import cancel_state_video
 
 video_blueprint = Blueprint("video", __name__, url_prefix="/video")
 CORS(video_blueprint)
@@ -85,5 +85,5 @@ def detect_specific():
 def cancel():
     # Set the cancel_process flag to True
     # This will set a trigger within the video processing function to return early
-    cancel_state['canceled'] = True
-    return {"message": "Process cancelled"}
+    cancel_state_video['canceled'] = True
+    return {"message": "Processing cancelled"}

@@ -40,3 +40,8 @@ def detect_specific():
 
 
     return compare_logo_embeddings(main_image, reference_image, similarity_threshold, bb_color,bounding_box_threshold)
+
+@image_blueprint.route("/cancel", methods=["POST"])
+def cancel():
+    cancel_state_image['canceled'] = True
+    return jsonify({"message": "Processing cancelled"}), 200

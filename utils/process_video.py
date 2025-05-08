@@ -18,7 +18,7 @@ embedding_models = [beit, clip, resnet]
 from flask import jsonify
 
 from utils.video_progress import video_progress
-from utils.cancel_process import cancel_state
+from utils.cancel_process import cancel_state_video
 
 from utils.logo_detection_utils import *
 
@@ -100,7 +100,7 @@ def process_video(input_video_path, bounding_box_threshold, bb_color, frame_skip
 
     # init the cancel_process flag to be False. Ensures that the process is not cancelled
     # when the function is first called
-    cancel_state['canceled'] = False
+    cancel_state_video['canceled'] = False
 
     frame_idx = 0
     saved_frame_data = []
@@ -113,11 +113,11 @@ def process_video(input_video_path, bounding_box_threshold, bb_color, frame_skip
         video_progress['progress_percentage'] = float((frame_idx / total_frames)) * 100
 
         # Check if the process has been cancelled
-        if check_if_cancelled():
+        if check_if_cancelled("video"):
             return jsonify({"message": "Processing cancelled"}), 200
         
         # print if the process has been cancelled. Should be false
-        print(f"CANCELLED: {cancel_state['canceled']}")
+        print(f"CANCELLED: {cancel_state_video['canceled']}")
 
         if not ret:
             break  # stop if video ends
@@ -200,7 +200,7 @@ def process_video_specific(input_video_path, reference_image_path,bounding_box_t
 
     # init the cancel_process flag to be False. Ensures that the process is not cancelled
     # when the function is first called
-    cancel_state['canceled'] = False
+    cancel_state_video['canceled'] = False
     
     # Get the reference logo embeddings
     # Store it as a dict. Key: Model_name, value: [Vector]
@@ -221,11 +221,11 @@ def process_video_specific(input_video_path, reference_image_path,bounding_box_t
         video_progress['progress_percentage'] = float((frame_idx / total_frames)) * 100
 
         # Check if the process has been cancelled
-        if check_if_cancelled():
+        if check_if_cancelled("video"):
             return jsonify({"message": "Processing cancelled"}), 200
         
         # print if the process has been cancelled. Should be false
-        print(f"CANCELLED: {cancel_state['canceled']}")
+        print(f"CANCELLED: {cancel_state_video['canceled']}")
 
         if not ret:
             break  # stop if video ends

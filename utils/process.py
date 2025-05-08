@@ -10,6 +10,7 @@ from utils.embed import BEiTEmbedding, CLIPEmbedding, ResNetEmbedding
 from models.model_load import model
 
 from utils.logo_detection_utils import *
+from utils.cancel_process import cancel_state_image
 
 beit = BEiTEmbedding()
 clip = CLIPEmbedding()
@@ -27,6 +28,9 @@ def compare_logo_embeddings(input_file, reference_file, score_threshold, bb_colo
     # Convert the color from hex to BGR for OpenCV
     bb_color = hex_to_bgr(bb_color)
 
+    # Make sure the cancel state is set to False
+    cancel_state_image['canceled'] = False
+
     # Get the bounding boxes for the logos in the input image and reference image
     # input_logos is the list of cropped logos
     # input_bboxes is the list of bounding boxes for each logo found in the image (tuple of (x1, y1, x2, y2))
@@ -40,6 +44,10 @@ def compare_logo_embeddings(input_file, reference_file, score_threshold, bb_colo
 
     bounding_boxes_info = []  # Will contain bounding box data
 
+    # Check if the cancel state is set to True
+    if check_if_cancelled("image"):
+        return jsonify({"message": "Processing cancelled"}), 200
+    
     # Creates a dictionary of embeddings for each model
     # ex. input_embeddings = {'BEiTEmbedding': [embedding1, embedding2], 'CLIPEmbedding': [embedding3, embedding4], 'ResNetEmbedding': [embedding5, embedding6]}
     input_embeddings = {type(emb).__name__: [emb.extract_embedding(Image.fromarray(logo)) for logo in input_logos] for emb in embedding_models}
@@ -48,6 +56,7 @@ def compare_logo_embeddings(input_file, reference_file, score_threshold, bb_colo
     # Iterate over each input logo and reference logo
     for i in range(len(reference_logos)):
         for j in range(len(input_logos)):
+            
             # Gather embeddings per model for this pair
             input_embeds = {emb_model: input_embeddings[emb_model][j] for emb_model in input_embeddings}
             reference_embeds = {emb_model: [reference_embeddings[emb_model][i]] for emb_model in reference_embeddings}
@@ -55,6 +64,11 @@ def compare_logo_embeddings(input_file, reference_file, score_threshold, bb_colo
             # If the images are similar enough, draw a bounding box around the logo in the input image
             if verify_vote(input_embeds, reference_embeds, score_threshold, embedding_models):
                 bounding_boxes_info.append(extract_and_record_logo(input_img, input_bboxes[j], bb_color))
+
+             # Check if the process has been cancelled
+            if check_if_cancelled("image"):
+                return jsonify({"message": "Processing cancelled"}), 200
+
 
         return jsonify({
             "bounding_boxes": bounding_boxes_info,
@@ -67,6 +81,9 @@ def identify_all_logos(file, bb_color, bounding_box_threshold):
     '''Returns the image with bounding boxes around all logos found'''
     file_bytes = np.frombuffer(file.read(), np.uint8)
     img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+
+    # Make sure the cancel state is set to False
+    cancel_state_image['canceled'] = False
     
     # input_logos is the list of cropped logos
     # bounding_boxes is a list of bounding boxes for each logo found in the image (tuple of (x1, y1, x2, y2))
@@ -77,6 +94,9 @@ def identify_all_logos(file, bb_color, bounding_box_threshold):
     
     # Use this to send bounding box info back to frontend
     bounding_boxes_info = []
+
+    if check_if_cancelled("image"):
+        return jsonify({"message": "Processing cancelled"}), 200
 
     for box in bounding_boxes:
         
