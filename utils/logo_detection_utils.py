@@ -21,7 +21,8 @@ def extract_logo_regions(image, bounding_box_threshold, save_crop=False, output_
     import cv2
     import os
 
-    from models.model_load import model
+    from models.model_load import initialize_model
+    model = initialize_model()
 
     # Check if input is a file path or an image array
     if isinstance(image, str):  # File path

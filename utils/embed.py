@@ -1,7 +1,4 @@
 import os
-import logging
-
-logging.getLogger("transformers").setLevel(logging.ERROR)
 
 current_dir = os.getcwd()
 cache_dir = os.path.join(current_dir, "model_cache")
@@ -9,7 +6,11 @@ os.makedirs(cache_dir, exist_ok=True)
 
 class BEiTEmbedding:
     def __init__(self, model_name="microsoft/beit-base-patch16-224"):
+        import logging
+
         from transformers import AutoImageProcessor, BeitModel
+
+        logging.getLogger("transformers").setLevel(logging.ERROR)
 
         self.feature_extractor = AutoImageProcessor.from_pretrained(model_name, cache_dir=cache_dir) 
         self.model = BeitModel.from_pretrained(model_name, cache_dir=cache_dir)

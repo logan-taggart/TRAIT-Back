@@ -1,19 +1,21 @@
-import tempfile
-import os
-import io
-from flask import Blueprint, request, send_file
+from flask import Blueprint, request, send_file, jsonify
 from flask_cors import CORS
-
-from utils.process_video import *
-
-from utils.video_progress import video_progress
-from utils.cancel_process import cancel_state_video
 
 video_blueprint = Blueprint("video", __name__, url_prefix="/video")
 CORS(video_blueprint)
 
+@video_blueprint.route("/", methods=["GET"])
+def health_check():
+    return jsonify({"status": "Video processing service is running"}), 200
+
 @video_blueprint.route("/detect-all", methods=["POST"])
 def detect_all():
+    import io
+    import os
+    import tempfile
+
+    from utils.process_video import process_video
+
     if "main_video" not in request.files:
         return {"error": "No file provided"}, 400
     
@@ -36,6 +38,8 @@ def detect_all():
 
 @video_blueprint.route("/fetch-processed-video", methods=["GET"])
 def fetch_processed_video():
+    import os
+
     video_path = './processed_videos/processed_video.mp4'
 
     if not os.path.exists(video_path):
@@ -45,6 +49,8 @@ def fetch_processed_video():
 
 @video_blueprint.route("/fetch-progress", methods=["GET"])
 def fetch_progress():
+    from utils.video_progress import video_progress
+
     # Return the current progress of the video processing
     # print("*****************************")
     # print(video_progress)
@@ -52,6 +58,12 @@ def fetch_progress():
 
 @video_blueprint.route("/detect-specific", methods=["POST"])
 def detect_specific():
+    import io
+    import os
+    import tempfile
+
+    from utils.process_video import process_video_specific;
+
     if "main_video" not in request.files or "reference_image" not in request.files:
         return {"error": "No file provided"}, 400
     
@@ -60,7 +72,7 @@ def detect_specific():
     similarity_threshold = int(request.form.get("confidence"))
     bb_color = request.form.get("bb_color")
     bounding_box_threshold = float(request.form.get("bounding_box_threshold", 0.25))  # with default
-    bounding_box_threshold = float(bounding_box_threshold)/100 #convert to decimal percent for func parameter 
+    bounding_box_threshold = float(bounding_box_threshold) / 100 #convert to decimal percent for func parameter 
 
 
     # Save the main video to a temporary file
@@ -83,6 +95,7 @@ def detect_specific():
 
 @video_blueprint.route("/cancel", methods=["POST"])
 def cancel():
+    from utils.cancel_process import cancel_state_video
     # Set the cancel_process flag to True
     # This will set a trigger within the video processing function to return early
     cancel_state_video['canceled'] = True
