@@ -1,9 +1,20 @@
 import os
 import signal
+import threading
 
 from app import create_app
 
 app = create_app()
+
+def warmup():
+    print("Loading large imports...")
+    import numpy
+    import torch
+    import transformers
+    from ultralytics import YOLO
+    from models.model_load import initialize_model
+    initialize_model()
+    print("Major loading complete.")
 
 def handle_shutdown(signum, frame):
     import sys
@@ -24,6 +35,8 @@ if __name__ == "__main__":
     # Change the environment to "dev" for development, "prod" for production  
     env = os.environ.get("ENV", "dev")
     port = int(os.environ.get("PORT", 5174))
+
+    threading.Timer(1.0, warmup).start()
 
     if env == "prod":
         from waitress import serve
