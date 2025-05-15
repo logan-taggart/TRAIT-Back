@@ -7,10 +7,17 @@ from app import create_app
 app = create_app()
 
 def warmup():
-    print("Loading large imports...")
+    print("Loading major imports...")
+    import cv2
+    from flask import jsonify
     import numpy
+    from PIL import Image
     import torch
+    import torch.nn as nn
+    from torchvision.models import resnet50, ResNet50_Weights
+    from torchvision.transforms import Resize, CenterCrop, ToTensor, Normalize, Compose
     import transformers
+    from transformers import AutoImageProcessor, BeitModel, CLIPModel, CLIPProcessor
     from ultralytics import YOLO
     from models.model_load import initialize_model
     initialize_model()
