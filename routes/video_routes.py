@@ -39,8 +39,14 @@ def detect_all():
 @video_blueprint.route("/fetch-processed-video", methods=["GET"])
 def fetch_processed_video():
     import os
+    import sys
 
-    video_path = './processed_videos/processed_video.mp4'
+    if getattr(sys, 'frozen', False):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.abspath(".")
+
+    video_path = os.path.join(base_path, "processed_videos", "processed_video.mp4")
 
     if not os.path.exists(video_path):
         return {"error": "Video not found"}, 404
