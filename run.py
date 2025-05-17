@@ -1,3 +1,4 @@
+from multiprocessing import freeze_support
 import os
 import signal
 import threading
@@ -43,7 +44,8 @@ if __name__ == "__main__":
     env = os.environ.get("ENV", "prod")
     port = int(os.environ.get("PORT", 5174))
 
-    threading.Timer(1.0, warmup).start()
+    freeze_support()
+    threading.Thread(target=warmup, daemon=True).start()
 
     if env == "prod":
         from waitress import serve
