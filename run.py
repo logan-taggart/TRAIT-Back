@@ -40,7 +40,7 @@ except ImportError:
 
 if __name__ == "__main__":
     # Change the environment to "dev" for development, "prod" for production  
-    env = os.environ.get("ENV", "dev")
+    env = os.environ.get("ENV", "prod")
     port = int(os.environ.get("PORT", 5174))
 
     threading.Timer(1.0, warmup).start()
