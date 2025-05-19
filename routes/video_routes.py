@@ -39,14 +39,10 @@ def detect_all():
 @video_blueprint.route("/fetch-processed-video", methods=["GET"])
 def fetch_processed_video():
     import os
-    import sys
+    import tempfile
 
-    if getattr(sys, 'frozen', False):
-        base_path = os.path.dirname(sys.executable)
-    else:
-        base_path = os.path.dirname(os.path.abspath(__file__))
-
-    video_path = os.path.join(base_path, "processed_videos", "processed_video.mp4")
+    temp_dir = tempfile.gettempdir()
+    video_path = os.path.join(temp_dir, "processed_video.mp4")
 
     if not os.path.exists(video_path):
         return jsonify({
@@ -55,6 +51,7 @@ def fetch_processed_video():
         }), 404
 
     return send_file(video_path, mimetype='video/mp4')
+
 
 @video_blueprint.route("/fetch-progress", methods=["GET"])
 def fetch_progress():

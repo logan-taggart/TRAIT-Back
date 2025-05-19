@@ -25,17 +25,15 @@ def setup_faiss(embedding_dim=768):
 
 def setup_directories():
     import os
-    # Remove any existing processed video files
-    if os.path.exists("./processed_videos/processed_video.mp4"):
-        os.remove("./processed_videos/processed_video.mp4")
+    import tempfile
 
+    temp_dir = tempfile.gettempdir()
 
-    # Create the output directory if it doesn't exist
-    output_video_dir = "./processed_videos"
-    os.makedirs(output_video_dir, exist_ok=True)
-    # Where the processed video will be saved
-    output_video_path = "./processed_videos/temp_processed_video.mp4"
-    temp_compressed_path = "./processed_videos/processed_video.mp4"
+    output_video_path = os.path.join(temp_dir, "temp_processed_video.mp4")
+    temp_compressed_path = os.path.join(temp_dir, "processed_video.mp4")
+
+    if os.path.exists(temp_compressed_path):
+        os.remove(temp_compressed_path)
 
     return output_video_path, temp_compressed_path
 
