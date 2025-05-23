@@ -78,6 +78,7 @@ def process_video(input_video_path, bounding_box_threshold, bb_color, frame_skip
     import cv2
     import faiss
     from flask import jsonify
+    import time
 
     from utils.cancel_process import cancel_state_video
     from utils.logo_detection_utils import check_if_cancelled, draw_bb_box, extract_logo_regions, hex_to_bgr, save_frame_func, update_logo_in_faiss
@@ -166,6 +167,8 @@ def process_video(input_video_path, bounding_box_threshold, bb_color, frame_skip
 
     run_ffmpeg_subprocess(output_video_path, temp_compressed_path)
 
+    time.sleep(0.25)
+
     return jsonify({
         "saved_frames": saved_frame_data,
         "logo_appearance_count": logo_appearance_counts
@@ -180,6 +183,7 @@ def process_video_specific(input_video_path, reference_image_path,bounding_box_t
     from flask import jsonify
     import numpy as np
     from PIL import Image
+    import time
 
     from utils.cancel_process import cancel_state_video
     from utils.logo_detection_utils import add_logo_to_faiss, check_if_cancelled, draw_bb_box, extract_logo_regions, hex_to_bgr, increase_logo_appearance_count, save_frame_func, verify_vote
@@ -322,6 +326,8 @@ def process_video_specific(input_video_path, reference_image_path,bounding_box_t
 
     run_ffmpeg_subprocess(output_video_path, temp_compressed_path)
 
+    time.sleep(0.25)
+    
     return jsonify({
         "saved_frames": saved_frame_data,
         "logo_appearance_count": logo_appearance_counts
