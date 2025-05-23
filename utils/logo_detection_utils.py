@@ -238,14 +238,6 @@ def save_frame_func(frame, frame_idx, logo_id_counter, input_logo, save_dir="new
 
     import base64
     import cv2
-    import os
-
-    # Save the frame with the logo bounding box
-    os.makedirs(save_dir, exist_ok=True)
-    # Create a unique filename for the frame
-    # Save the frame with the logo bounding box
-    save_path = os.path.join(save_dir, f"frame_{frame_idx}_logo_{logo_id_counter}.jpg")
-    cv2.imwrite(save_path, frame)
 
     # Convert the logo to base64 to be sent to the frontend
     _, buffer = cv2.imencode('.jpg', input_logo)
