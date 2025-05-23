@@ -23,6 +23,7 @@ def setup_faiss(embedding_dim=768):
     logo_appearance_counts = defaultdict(int) # How many times a unique logo has appeared
     return faiss_index, logo_id_counter, logo_id_map, logo_appearance_counts
 
+
 def setup_directories():
     import os
     import tempfile
@@ -36,6 +37,7 @@ def setup_directories():
         os.remove(temp_compressed_path)
 
     return output_video_path, temp_compressed_path
+
 
 def setup_opencv_video(input_video_path, output_video_path):
     import cv2
@@ -51,6 +53,7 @@ def setup_opencv_video(input_video_path, output_video_path):
     out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
 
     return cap, out
+
 
 def run_ffmpeg_subprocess(input_video_path, output_video_path):
     import imageio_ffmpeg
@@ -69,9 +72,9 @@ def run_ffmpeg_subprocess(input_video_path, output_video_path):
     os.replace(input_video_path, output_video_path)
 
 
-# FOR GENERAL VIDEO SEARCH
-# Change frame_skip possobly to speed up?
 def process_video(input_video_path, bounding_box_threshold, bb_color, frame_skip=5):
+    '''FOR GENERAL VIDEO SEARCH, Change frame_skip possobly to speed up?'''
+
     import cv2
     import faiss
     from flask import jsonify
@@ -169,8 +172,9 @@ def process_video(input_video_path, bounding_box_threshold, bb_color, frame_skip
     })
 
 
-# FOR SPECIFIC VIDEO SEARCH
 def process_video_specific(input_video_path, reference_image_path,bounding_box_threshold, bb_color, votes_needed=2, frame_skip=5):
+    '''FOR SPECIFIC VIDEO SEARCH'''
+
     import cv2
     import faiss
     from flask import jsonify

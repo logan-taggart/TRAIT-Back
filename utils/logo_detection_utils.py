@@ -10,6 +10,7 @@ def compute_cosine_similarity(embedding1, embedding2):
     from scipy.spatial.distance import cosine
     return 1 - cosine(embedding1.ravel(), embedding2.ravel())
 
+
 def compute_euclidean_distances(embedding1, embedding2):
     from scipy.spatial.distance import euclidean
     return euclidean(embedding1.ravel(), embedding2.ravel())
@@ -78,6 +79,7 @@ def img_to_base64(img):
     img_bytes = buffer.tobytes()
     return base64.b64encode(img_bytes).decode('utf-8')
 
+
 def draw_bb_box(bbox, frame, ID, bb_color=(255, 255, 255)):
     '''
     Draws the bounding box around the logo in the frame
@@ -106,6 +108,7 @@ def add_logo_to_faiss(faiss_index, embedding, logo_id_map, logo_id_counter):
     # Increment the logo ID counter for the next unique logo
     return logo_id_counter + 1
 
+
 def increase_logo_appearance_count(logo_appearance_counts, logo_id_map, I, id):
     """ Increases the count of appearances for a logo in the logo_appearance_counts dictionary"""
     # Get the ID of the logo from the FAISS index
@@ -115,6 +118,7 @@ def increase_logo_appearance_count(logo_appearance_counts, logo_id_map, I, id):
     # Dont save the frame. We've already seen this logo
     save_frame = False
     return id, save_frame
+
 
 def update_logo_in_faiss(faiss_index, embedding, logo_id_map, logo_appearance_counts, threshold=0.5):
     '''Search FAISS index for a logo and update counts if a match is found or a new entry is added'''
@@ -232,6 +236,7 @@ def convert_file_to_image(file):
     file_bytes = np.frombuffer(file.read(), np.uint8)
     img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
     return img
+
 
 def save_frame_func(frame, frame_idx, logo_id_counter, input_logo, save_dir="new_logo_frames"):
     ''' Saves the frame with the logo bounding box and returns the logo ID and base64 encoded logo '''

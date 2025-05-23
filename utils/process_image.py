@@ -69,7 +69,6 @@ def compare_logo_embeddings(input_file, reference_file, score_threshold, bb_colo
         })
     
 
-
 def identify_all_logos(file, bb_color, bounding_box_threshold):
     '''Returns the image with bounding boxes around all logos found'''
     import cv2
