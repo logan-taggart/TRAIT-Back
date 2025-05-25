@@ -43,9 +43,9 @@ def setup_opencv_video(input_video_path, output_video_path):
     import cv2
 
     cap = cv2.VideoCapture(input_video_path)
-    # This will give an error, but it still works. GO WITH IT
-    # Actually doesnt support avc1, so the video size is like 900mb.
-    # The reason we need avc1 is because we need the H264 cocec for the video to play within the application
+    
+    # Use mp4v for the output video codec
+    # This will be changed to h264 in the ffmpeg subprocess
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     fps = int(cap.get(cv2.CAP_PROP_FPS))
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -62,6 +62,8 @@ def run_ffmpeg_subprocess(input_video_path, output_video_path):
 
     # Lower CRF = Higher Quality and Less Compression
     # Higher CRF = Lower Quality and More Compression
+
+    # Change the codec to h264
     subprocess.run([
         imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-i", input_video_path,
         "-vcodec", "libx264", "-crf", "23", "-preset", "ultrafast",
@@ -69,6 +71,7 @@ def run_ffmpeg_subprocess(input_video_path, output_video_path):
     ])
 
     # Replace the original video with the processed one
+    # The h264 codec video will be saved to the same path as the original video
     os.replace(output_video_path, input_video_path)
 
 
