@@ -30,8 +30,8 @@ def setup_directories():
 
     temp_dir = tempfile.gettempdir()
 
-    output_video_path = os.path.join(temp_dir, "temp_processed_video.mp4")
-    temp_compressed_path = os.path.join(temp_dir, "processed_video.mp4")
+    output_video_path = os.path.join(temp_dir, "processed_video.mp4")
+    temp_compressed_path = os.path.join(temp_dir, "temp_processed_video.mp4")
 
     if os.path.exists(temp_compressed_path):
         os.remove(temp_compressed_path)
@@ -46,7 +46,7 @@ def setup_opencv_video(input_video_path, output_video_path):
     # This will give an error, but it still works. GO WITH IT
     # Actually doesnt support avc1, so the video size is like 900mb.
     # The reason we need avc1 is because we need the H264 cocec for the video to play within the application
-    fourcc = cv2.VideoWriter_fourcc(*'avc1')
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     fps = int(cap.get(cv2.CAP_PROP_FPS))
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -69,7 +69,7 @@ def run_ffmpeg_subprocess(input_video_path, output_video_path):
     ])
 
     # Replace the original video with the processed one
-    os.replace(input_video_path, output_video_path)
+    os.replace(output_video_path, input_video_path)
 
 
 def process_video(input_video_path, bounding_box_threshold, bb_color, frame_skip=5):
@@ -92,6 +92,9 @@ def process_video(input_video_path, bounding_box_threshold, bb_color, frame_skip
     faiss_index, logo_id_counter, logo_id_map, logo_appearance_counts = setup_faiss(embedding_dim=768)
     
     output_video_path, temp_compressed_path = setup_directories()
+
+    print("Output video path:", output_video_path)
+    print("Temp compressed path:", temp_compressed_path)
     
     # Setup the video capture and writer to process the video
     cap, out = setup_opencv_video(input_video_path, output_video_path)
