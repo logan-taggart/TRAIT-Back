@@ -1,131 +1,109 @@
-name: Build and Release Executables
+name: Build and Release with Docker
 on:
   workflow_dispatch:
+
 permissions:
   contents: write
+
 jobs:
   build:
     strategy:
       matrix:
-        os: [macos-13, windows-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux/amd64
+            name: backend-linux
+          - os: ubuntu-latest  
+            platform: linux/amd64
+            name: backend-windows
+            target: windows
+          - os: macos-13
+            platform: darwin/amd64
+            name: backend-macos
+
     runs-on: ${{ matrix.os }}
+    
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.12.9"
+      - name: Set up Docker Buildx (Linux/Windows)
+        if: matrix.os == 'ubuntu-latest'
+        uses: docker/setup-buildx-action@v3
       
-      - name: Set OpenMP environment variable
+      - name: Build with Docker (Linux/Windows)
+        if: matrix.os == 'ubuntu-latest'
         run: |
-          echo "KMP_DUPLICATE_LIB_OK=TRUE" >> $GITHUB_ENV
-        shell: bash
-      
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          # Install core scientific libraries first to avoid conflicts
-          pip install numpy==1.26.4 scipy==1.15.2 --only-binary=all
-          pip install torch==2.2.2 torchvision==0.17.2 --index-url https://download.pytorch.org/whl/cpu
-          pip install -r requirements.txt
-          pip install pyinstaller
-        env:
-          KMP_DUPLICATE_LIB_OK: TRUE
-      
-      - name: Debug architecture info
-        run: |
-          echo "OS: ${{ runner.os }}"
-          python -c "import platform; print('Python:', platform.machine())"
-          if [[ "${{ runner.os }}" != "Windows" ]]; then
-            uname -m
-          fi
-        shell: bash
-      
-      - name: Build executable
-        run: |
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            pyinstaller --onedir --windowed --name backend run.py \
-              --add-data "models/logo_detection.pt;models" \
-              --exclude-module tkinter \
-              --hidden-import=sklearn.utils._cython_blas \
-              --hidden-import=sklearn.neighbors.typedefs \
-              --hidden-import=sklearn.neighbors.quad_tree \
-              --hidden-import=sklearn.tree._utils \
-              --hidden-import=cv2 \
-              --hidden-import=ultralytics \
-              --hidden-import=transformers \
-              --hidden-import=tokenizers \
-              --hidden-import=huggingface_hub \
-              --hidden-import=imageio \
-              --hidden-import=imageio.plugins.ffmpeg \
-              --hidden-import=PIL._tkinter_finder \
-              --collect-all torch \
-              --collect-all torchvision \
-              --collect-all ultralytics \
-              --collect-all transformers \
-              --collect-all tokenizers \
-              --collect-all cv2
-          else
-            arch -x86_64 pyinstaller --onedir --windowed --name backend run.py \
+          # Create Dockerfile for cross-platform builds
+          cat > Dockerfile << 'EOF'
+          FROM python:3.12-slim
+          
+          WORKDIR /app
+          COPY . .
+          
+          # Install system dependencies
+          RUN apt-get update && apt-get install -y \
+              build-essential \
+              && rm -rf /var/lib/apt/lists/*
+          
+          # Set OpenMP environment
+          ENV KMP_DUPLICATE_LIB_OK=TRUE
+          
+          # Install Python dependencies
+          RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          RUN pip install --no-cache-dir -r requirements.txt pyinstaller
+          
+          # Build executable
+          RUN pyinstaller --onedir --name backend run.py \
               --add-data "models/logo_detection.pt:models" \
-              --exclude-module tkinter \
-              --hidden-import=sklearn.utils._cython_blas \
-              --hidden-import=sklearn.neighbors.typedefs \
-              --hidden-import=sklearn.neighbors.quad_tree \
-              --hidden-import=sklearn.tree._utils \
-              --hidden-import=cv2 \
-              --hidden-import=ultralytics \
-              --hidden-import=transformers \
-              --hidden-import=tokenizers \
-              --hidden-import=huggingface_hub \
-              --hidden-import=imageio \
-              --hidden-import=imageio.plugins.ffmpeg \
-              --hidden-import=PIL._tkinter_finder \
-              --collect-all torch \
-              --collect-all torchvision \
-              --collect-all ultralytics \
-              --collect-all transformers \
-              --collect-all tokenizers \
-              --collect-all cv2
-          fi
-        shell: bash
-        env:
-          KMP_DUPLICATE_LIB_OK: TRUE
+              --exclude-module tkinter
+          
+          CMD ["cp", "-r", "dist/backend", "/output/"]
+          EOF
+          
+          # Build and extract
+          docker build -t backend-builder .
+          docker create --name temp-container backend-builder
+          docker cp temp-container:/app/dist/backend ./backend-${{ matrix.name }}
+          docker rm temp-container
+          
+          # Create archive
+          tar -czf ${{ matrix.name }}.tar.gz backend-${{ matrix.name }}
       
-      - name: Zip build output
+      - name: Build natively (macOS)
+        if: matrix.os == 'macos-13'
         run: |
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            powershell Compress-Archive -Path dist/backend -DestinationPath backend-windows.zip
-          else
-            cd dist && zip -r ../backend-macintel.zip backend
-          fi
-        shell: bash
+          export KMP_DUPLICATE_LIB_OK=TRUE
+          python -m pip install --upgrade pip
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt pyinstaller
+          
+          pyinstaller --onedir --name backend run.py \
+            --add-data "models/logo_detection.pt:models" \
+            --exclude-module tkinter
+          
+          tar -czf ${{ matrix.name }}.tar.gz -C dist backend
       
-      - name: Upload zipped artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: backend-${{ matrix.os }}
-          path: |
-            backend-windows.zip
-            backend-macintel.zip
+          name: ${{ matrix.name }}
+          path: ${{ matrix.name }}.tar.gz
 
   release:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Download all zipped artifacts
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          path: release-artifacts
+          path: artifacts
       
-      - name: Create GitHub Release
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           name: Release ${{ github.run_id }}
           tag_name: release-${{ github.run_id }}
-          body: "Automated release for commit `${{ github.sha }}`"
-          files: release-artifacts/**/*.zip
+          files: artifacts/**/*.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
