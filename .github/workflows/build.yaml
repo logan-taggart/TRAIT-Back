@@ -78,15 +78,6 @@ jobs:
           MKL_NUM_THREADS: 1
           PYTHONHASHSEED: 1
       
-      - name: Test executable (basic smoke test)
-        run: |
-          if [ "${{ runner.os }}" == "Windows" ]; then
-            ./dist/backend/backend.exe --help || echo "Backend built successfully"
-          else
-            ./dist/backend/backend --help || echo "Backend built successfully"  
-          fi
-        shell: bash
-        continue-on-error: true
       
       - name: Create release archive
         run: |
