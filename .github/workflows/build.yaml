@@ -1,48 +1,99 @@
 name: Build and Release Executables
-
 on:
   workflow_dispatch:
-
 permissions:
   contents: write
-
 jobs:
   build:
     strategy:
       matrix:
         os: [macos-13, windows-latest]
     runs-on: ${{ matrix.os }}
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
+      
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.12.9"
-
+      
+      - name: Set OpenMP environment variable
+        run: |
+          echo "KMP_DUPLICATE_LIB_OK=TRUE" >> $GITHUB_ENV
+        shell: bash
+      
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          # Install core scientific libraries first to avoid conflicts
+          pip install numpy==1.26.4 scipy==1.15.2 --only-binary=all
+          pip install torch==2.2.2 torchvision==0.17.2 --index-url https://download.pytorch.org/whl/cpu
           pip install -r requirements.txt
           pip install pyinstaller
-
+        env:
+          KMP_DUPLICATE_LIB_OK: TRUE
+      
       - name: Debug architecture info
         run: |
           echo "OS: ${{ runner.os }}"
           python -c "import platform; print('Python:', platform.machine())"
-          uname -m
-
+          if [[ "${{ runner.os }}" != "Windows" ]]; then
+            uname -m
+          fi
+        shell: bash
+      
       - name: Build executable
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            pyinstaller --onedir --windowed --name backend run.py --add-data "models/logo_detection.pt;models" --exclude-module tkinter
+            pyinstaller --onedir --windowed --name backend run.py \
+              --add-data "models/logo_detection.pt;models" \
+              --exclude-module tkinter \
+              --hidden-import=sklearn.utils._cython_blas \
+              --hidden-import=sklearn.neighbors.typedefs \
+              --hidden-import=sklearn.neighbors.quad_tree \
+              --hidden-import=sklearn.tree._utils \
+              --hidden-import=cv2 \
+              --hidden-import=ultralytics \
+              --hidden-import=transformers \
+              --hidden-import=tokenizers \
+              --hidden-import=huggingface_hub \
+              --hidden-import=imageio \
+              --hidden-import=imageio.plugins.ffmpeg \
+              --hidden-import=PIL._tkinter_finder \
+              --collect-all torch \
+              --collect-all torchvision \
+              --collect-all ultralytics \
+              --collect-all transformers \
+              --collect-all tokenizers \
+              --collect-all cv2
           else
-            arch -x86_64 pyinstaller --onedir --windowed --name backend run.py --add-data "models/logo_detection.pt:models" --exclude-module tkinter
+            arch -x86_64 pyinstaller --onedir --windowed --name backend run.py \
+              --add-data "models/logo_detection.pt:models" \
+              --exclude-module tkinter \
+              --hidden-import=sklearn.utils._cython_blas \
+              --hidden-import=sklearn.neighbors.typedefs \
+              --hidden-import=sklearn.neighbors.quad_tree \
+              --hidden-import=sklearn.tree._utils \
+              --hidden-import=cv2 \
+              --hidden-import=ultralytics \
+              --hidden-import=transformers \
+              --hidden-import=tokenizers \
+              --hidden-import=huggingface_hub \
+              --hidden-import=imageio \
+              --hidden-import=imageio.plugins.ffmpeg \
+              --hidden-import=PIL._tkinter_finder \
+              --collect-all torch \
+              --collect-all torchvision \
+              --collect-all ultralytics \
+              --collect-all transformers \
+              --collect-all tokenizers \
+              --collect-all cv2
           fi
         shell: bash
-
+        env:
+          KMP_DUPLICATE_LIB_OK: TRUE
+      
       - name: Zip build output
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
@@ -51,7 +102,7 @@ jobs:
             cd dist && zip -r ../backend-macintel.zip backend
           fi
         shell: bash
-
+      
       - name: Upload zipped artifact
         uses: actions/upload-artifact@v4
         with:
@@ -63,13 +114,12 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-
     steps:
       - name: Download all zipped artifacts
         uses: actions/download-artifact@v4
         with:
           path: release-artifacts
-
+      
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
